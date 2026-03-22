@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Flip clock animations ─────────────────────────────────────────── */
+@keyframes flap-top-out {
+  from { transform: rotateX(0deg); }
+  to   { transform: rotateX(-90deg); }
+}
+
+@keyframes flap-bottom-in {
+  from { transform: rotateX(90deg); }
+  to   { transform: rotateX(0deg); }
+}
+
+.flap-top-out {
+  transform-origin: center bottom;
+  animation: flap-top-out 180ms ease-in forwards;
+}
+
+.flap-bottom-in {
+  transform-origin: center top;
+  animation: flap-bottom-in 180ms ease-out forwards;
+  animation-delay: 140ms;
+}

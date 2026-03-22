@@ -1,0 +1,41 @@
+# Dépendances Node
+node_modules/
+
+# Build Next.js
+.next/
+out/
+
+# Données locales et uploads (volumes Docker)
+data/
+uploads/
+
+# Variables d'environnement — ne jamais committer
+.env
+.env.*
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Fichiers TypeScript compilés
+*.tsbuildinfo
+next-env.d.ts
+
+# Instructions locales Claude et configuration locale
+CLAUDE.md
+.claude/
