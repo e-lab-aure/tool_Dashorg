@@ -63,6 +63,10 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** URL de l'image ouverte en lightbox, null si aucune */
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  /** Nom de fichier de l'image ouverte en lightbox */
+  const [lightboxAlt, setLightboxAlt] = useState('');
 
   // Synchronise l'état local quand la tâche sélectionnée change
   useEffect(() => {
@@ -289,29 +293,70 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
               <p className="text-sm text-gray-400 dark:text-gray-500 italic">Aucune pièce jointe</p>
             )}
 
+            {/* Grille de miniatures pour les images */}
+            {attachments.some((a) => a.mimetype?.startsWith('image/')) && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {attachments
+                  .filter((a) => a.mimetype?.startsWith('image/'))
+                  .map((attachment) => (
+                    <button
+                      key={attachment.id}
+                      onClick={() => {
+                        setLightboxUrl(`/api/uploads/${attachment.id}`);
+                        setLightboxAlt(attachment.filename);
+                      }}
+                      title={attachment.filename}
+                      className="relative group block"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/uploads/${attachment.id}`}
+                        alt={attachment.filename}
+                        className="h-20 w-20 object-cover rounded border border-gray-200 dark:border-gray-600 hover:opacity-80 transition-opacity"
+                      />
+                      {/* Bouton suppression au survol */}
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteAttachment(attachment.id);
+                        }}
+                        className="absolute top-0.5 right-0.5 hidden group-hover:flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs leading-none hover:bg-red-600"
+                        aria-label={`Supprimer ${attachment.filename}`}
+                      >
+                        ✕
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            )}
+
+            {/* Liste des fichiers non-image */}
             <ul className="space-y-2 mb-3">
-              {attachments.map((attachment) => (
-                <li
-                  key={attachment.id}
-                  className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded px-3 py-2"
-                >
-                  <a
-                    href={`/api/uploads/${attachment.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate max-w-xs"
+              {attachments
+                .filter((a) => !a.mimetype?.startsWith('image/'))
+                .map((attachment) => (
+                  <li
+                    key={attachment.id}
+                    className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 rounded px-3 py-2"
                   >
-                    {attachment.filename}
-                  </a>
-                  <button
-                    onClick={() => handleDeleteAttachment(attachment.id)}
-                    className="ml-2 text-red-500 hover:text-red-700 text-xs shrink-0"
-                    aria-label={`Supprimer ${attachment.filename}`}
-                  >
-                    Supprimer
-                  </button>
-                </li>
-              ))}
+                    <a
+                      href={`/api/uploads/${attachment.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate max-w-xs"
+                    >
+                      📎 {attachment.filename}
+                    </a>
+                    <button
+                      onClick={() => handleDeleteAttachment(attachment.id)}
+                      className="ml-2 text-red-500 hover:text-red-700 text-xs shrink-0"
+                      aria-label={`Supprimer ${attachment.filename}`}
+                    >
+                      Supprimer
+                    </button>
+                  </li>
+                ))}
             </ul>
 
             {/* Bouton d'upload */}
@@ -367,6 +412,32 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
           </div>
         </div>
       </aside>
+
+      {/* Lightbox - fond sombre cliquable pour fermer, z-index supérieur au panneau */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70"
+          onClick={() => setLightboxUrl(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={lightboxAlt}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt={lightboxAlt}
+            className="max-w-[90vw] max-h-[85vh] rounded-lg shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 text-white text-2xl leading-none hover:text-gray-300 transition-colors"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </>
   );
 }

@@ -21,6 +21,8 @@ interface TomorrowBoardProps {
   onAdd: (task: Task) => void;
   /** Callback pour supprimer un slot libre */
   onDelete: (taskId: number) => void;
+  /** Callback pour ouvrir le panneau de détail d'un slot */
+  onSelect: (task: Task) => void;
 }
 
 /** Nombre maximum de slots dans le tableau de demain */
@@ -29,7 +31,7 @@ const MAX_SLOTS = 5;
 /**
  * Composant du tableau de demain avec gestion des slots verrouillés et libres.
  */
-export default function TomorrowBoard({ tasks, onUpdate, onAdd, onDelete }: TomorrowBoardProps) {
+export default function TomorrowBoard({ tasks, onUpdate, onAdd, onDelete, onSelect }: TomorrowBoardProps) {
   // Titres en cours d'édition pour chaque slot libre, indexés par task.id
   const [editingTitles, setEditingTitles] = useState<Record<number, string>>({});
   // Descriptions en cours d'édition pour chaque slot libre, indexées par task.id
@@ -175,7 +177,7 @@ export default function TomorrowBoard({ tasks, onUpdate, onAdd, onDelete }: Tomo
           const isLocked = task.slot_type === 'locked';
 
           if (isLocked) {
-            // Slot verrouillé : grisé et non éditable
+            // Slot verrouillé : grisé, titre cliquable pour ouvrir le détail
             return (
               <li
                 key={task.id}
@@ -183,9 +185,13 @@ export default function TomorrowBoard({ tasks, onUpdate, onAdd, onDelete }: Tomo
                 title="Ce slot est verrouillé (reporté depuis aujourd'hui)"
               >
                 <span className="text-xl shrink-0">🔒</span>
-                <span className="flex-1 text-sm text-gray-500 dark:text-gray-400 truncate italic">
+                <button
+                  onClick={() => onSelect(task)}
+                  className="flex-1 text-left text-sm text-gray-500 dark:text-gray-400 truncate italic hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                  title="Voir le détail"
+                >
                   {task.title}
-                </span>
+                </button>
               </li>
             );
           }
@@ -203,26 +209,40 @@ export default function TomorrowBoard({ tasks, onUpdate, onAdd, onDelete }: Tomo
               <div className="flex items-center gap-2">
                 <span className="text-xl shrink-0">📋</span>
 
-                {/* Titre éditable inline */}
-                <input
-                  type="text"
-                  value={currentTitle}
-                  onChange={(e) =>
-                    setEditingTitles((prev) => ({ ...prev, [task.id]: e.target.value }))
-                  }
-                  onBlur={() => handleTitleSave(task, currentTitle)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleTitleSave(task, currentTitle);
-                    if (e.key === 'Escape') {
-                      setEditingTitles((prev) => {
-                        const next = { ...prev };
-                        delete next[task.id];
-                        return next;
-                      });
+                {/* Titre cliquable pour ouvrir le détail, éditable via double-clic */}
+                {task.id in editingTitles ? (
+                  <input
+                    type="text"
+                    autoFocus
+                    value={currentTitle}
+                    onChange={(e) =>
+                      setEditingTitles((prev) => ({ ...prev, [task.id]: e.target.value }))
                     }
-                  }}
-                  className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white outline-none border-b border-transparent hover:border-gray-300 dark:hover:border-gray-500 focus:border-blue-500 transition-colors min-w-0"
-                />
+                    onBlur={() => handleTitleSave(task, currentTitle)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleTitleSave(task, currentTitle);
+                      if (e.key === 'Escape') {
+                        setEditingTitles((prev) => {
+                          const next = { ...prev };
+                          delete next[task.id];
+                          return next;
+                        });
+                      }
+                    }}
+                    className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white outline-none border-b border-blue-500 transition-colors min-w-0"
+                  />
+                ) : (
+                  <button
+                    onClick={() => onSelect(task)}
+                    onDoubleClick={() =>
+                      setEditingTitles((prev) => ({ ...prev, [task.id]: task.title }))
+                    }
+                    className="flex-1 text-left text-sm text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors min-w-0"
+                    title="Cliquer pour voir le détail — double-cliquer pour modifier"
+                  >
+                    {task.title}
+                  </button>
+                )}
 
                 {/* Bouton retour en file d'attente */}
                 <button

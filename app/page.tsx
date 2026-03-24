@@ -164,6 +164,24 @@ export default function HomePage() {
   }
 
   /**
+   * Archive une tâche depuis la file d'attente.
+   * La retire de waiting et l'ajoute en tête des archives.
+   * @param archivedTask - Tâche archivée retournée par l'API
+   */
+  function handleWaitingArchive(archivedTask: Task): void {
+    setWaitingTasks((prev) => prev.filter((t) => t.id !== archivedTask.id));
+    setArchivedTasks((prev) => [archivedTask, ...prev]);
+  }
+
+  /**
+   * Supprime définitivement une tâche depuis la file d'attente.
+   * @param taskId - Identifiant de la tâche supprimée
+   */
+  function handleWaitingDelete(taskId: number): void {
+    setWaitingTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }
+
+  /**
    * Gère la restauration d'une tâche archivée en file d'attente.
    * Retire la tâche des archives et l'ajoute dans waiting.
    * @param restoredTask - Tâche restaurée retournée par l'API
@@ -213,8 +231,39 @@ export default function HomePage() {
   }
 
   /**
+   * Recharge silencieusement les listes et les tâches en arrière-plan.
+   * Utilisé par le polling automatique pour détecter les nouveaux items créés par le cron IMAP.
+   * N'affiche aucun indicateur visuel pour ne pas perturber l'utilisateur.
+   */
+  const silentRefresh = useCallback(async (): Promise<void> => {
+    try {
+      const [tasksRes, listsRes] = await Promise.all([
+        fetch('/api/tasks'),
+        fetch('/api/lists'),
+      ]);
+
+      if (!tasksRes.ok || !listsRes.ok) return;
+
+      const tasks = await tasksRes.json() as Task[];
+      const lists = await listsRes.json() as ListItem[];
+
+      setTodayTasks(tasks.filter((t) => t.board === 'today'));
+      setWaitingTasks(tasks.filter((t) => t.board === 'waiting'));
+      setListItems(lists);
+    } catch {
+      // Erreur silencieuse - ne pas interrompre l'expérience utilisateur
+    }
+  }, []);
+
+  // Polling toutes les 60 secondes pour détecter les items créés par le cron IMAP automatique
+  useEffect(() => {
+    const interval = setInterval(silentRefresh, 60_000);
+    return () => clearInterval(interval);
+  }, [silentRefresh]);
+
+  /**
    * Déclenche une synchronisation IMAP manuelle.
-   * Recharge les listes après la synchro pour afficher les nouveaux items importés.
+   * Recharge les listes et la file d'attente après la synchro pour afficher tous les nouveaux items.
    * Affiche un message de résultat pendant 4 secondes.
    */
   async function handleManualSync(): Promise<void> {
@@ -229,11 +278,21 @@ export default function HomePage() {
 
       const { created, ignored } = await response.json() as { created: number; ignored: number };
 
-      // Recharge les listes pour intégrer les nouveaux items importés par IMAP
-      const listsRes = await fetch('/api/lists');
+      // Recharge les listes ET les tâches pour intégrer tous les items importés ([TODO] inclus)
+      const [listsRes, tasksRes] = await Promise.all([
+        fetch('/api/lists'),
+        fetch('/api/tasks'),
+      ]);
+
       if (listsRes.ok) {
         const lists = await listsRes.json() as ListItem[];
         setListItems(lists);
+      }
+
+      if (tasksRes.ok) {
+        const tasks = await tasksRes.json() as Task[];
+        setTodayTasks(tasks.filter((t) => t.board === 'today'));
+        setWaitingTasks(tasks.filter((t) => t.board === 'waiting'));
       }
 
       setSyncMessage(
@@ -339,6 +398,7 @@ export default function HomePage() {
               onUpdate={handleTaskUpdate}
               onAdd={handleTomorrowAdd}
               onDelete={handleTomorrowDelete}
+              onSelect={(task) => setSelectedTask(task)}
             />
           </div>
 
@@ -346,6 +406,10 @@ export default function HomePage() {
           <WaitingQueue
             tasks={waitingTasks}
             onInject={handleWaitingInject}
+            onUpdate={handleTaskUpdate}
+            onArchive={handleWaitingArchive}
+            onDelete={handleWaitingDelete}
+            onSelect={(task) => setSelectedTask(task)}
           />
 
           {/* Archives — tâches terminées, repliées par défaut */}

@@ -1,8 +1,9 @@
 /**
  * @module imap
- * @description Polling IMAP pour créer automatiquement des items de liste à partir des emails.
- * Les emails dont le sujet commence par [FILM], [LIVRE], [RESTAURANT] ou [NOTE]
- * sont automatiquement importés dans la catégorie correspondante.
+ * @description Polling IMAP pour créer automatiquement des items et des tâches à partir des emails.
+ * - [TODO] TITRE : crée une tâche en file d'attente (board "waiting"), avec le corps du mail comme description
+ * - [FILM], [LIVRE], [RESTAURANT], [NOTE] ou tout tag personnalisé : crée un item dans la liste correspondante
+ * Les emails sans tag reconnu sont ignorés mais traités (marqués lus, supprimés ou archivés).
  */
 
 import { ImapFlow } from 'imapflow';
@@ -97,9 +98,12 @@ function extractMessageId(source: string): string | null {
 
 /**
  * Extrait le corps textuel d'un message IMAP.
- * Préfère le contenu texte brut, sinon retourne une chaîne vide.
+ * Préfère le contenu texte brut de la partie text/plain.
+ * Si la partie text/plain est trouvée mais vide (ex: mail avec seulement une pièce jointe),
+ * retourne une chaîne vide sans tenter de repli — ce qui évite de capturer du contenu MIME brut.
+ * Le repli sur le contenu brut n'est tenté que pour les emails sans structure multipart.
  * @param source - Source brute du message
- * @returns Corps textuel du message
+ * @returns Corps textuel du message, chaîne vide si aucun texte trouvé
  */
 function extractTextBody(source: string): string {
   // Recherche la partie text/plain dans le message brut
@@ -107,11 +111,18 @@ function extractTextBody(source: string): string {
     /Content-Type:\s*text\/plain[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?:\r?\n--|\r?\n\r?\n--|\s*$)/i
   );
 
-  if (textPlainMatch && textPlainMatch[1]) {
-    return textPlainMatch[1].trim();
+  // Si une partie text/plain est trouvée, on utilise son contenu même s'il est vide.
+  // Ne pas tomber dans le repli évite de capturer les boundaries et headers MIME des pièces jointes.
+  if (textPlainMatch !== null) {
+    return (textPlainMatch[1] ?? '').trim();
   }
 
-  // Repli : retourne le contenu après les headers si aucune structure MIME trouvée
+  // Repli uniquement pour les emails sans structure multipart (emails texte simples).
+  // Pour les emails multipart sans text/plain détecté, on retourne vide plutôt que du MIME brut.
+  if (/Content-Type:\s*multipart\//i.test(source)) {
+    return '';
+  }
+
   const bodyMatch = source.match(/\r?\n\r?\n([\s\S]+)/);
   if (bodyMatch && bodyMatch[1]) {
     return bodyMatch[1].trim();
@@ -125,6 +136,12 @@ const LISTS_UPLOADS_BASE =
   process.env.NODE_ENV === 'production'
     ? '/app/uploads/lists'
     : path.join(process.cwd(), 'uploads', 'lists');
+
+/** Répertoire de stockage des pièces jointes de tâches selon l'environnement */
+const TASKS_UPLOADS_BASE =
+  process.env.NODE_ENV === 'production'
+    ? '/app/uploads/tasks'
+    : path.join(process.cwd(), 'uploads', 'tasks');
 
 /** Représente une image extraite d'un email MIME */
 interface ExtractedImage {
@@ -267,6 +284,58 @@ function saveImagesToItem(images: ExtractedImage[], itemId: number): number {
   return saved;
 }
 
+/**
+ * Sauvegarde les images extraites d'un email sur le disque et en base dans la table attachments.
+ * Les fichiers sont stockés dans uploads/tasks/{taskId}/ avec un nom horodaté.
+ * @param images - Images extraites du message MIME
+ * @param taskId - Identifiant de la tâche à laquelle rattacher les fichiers
+ * @returns Nombre d'images sauvegardées avec succès
+ */
+function saveImagesToTask(images: ExtractedImage[], taskId: number): number {
+  if (images.length === 0) return 0;
+
+  const taskDir = path.join(TASKS_UPLOADS_BASE, String(taskId));
+
+  if (!fs.existsSync(taskDir)) {
+    fs.mkdirSync(taskDir, { recursive: true });
+  }
+
+  let saved = 0;
+
+  const stmt = db.prepare(`
+    INSERT INTO attachments (task_id, filename, filepath, mimetype, size_bytes)
+    VALUES (@task_id, @filename, @filepath, @mimetype, @size_bytes)
+  `);
+
+  for (const image of images) {
+    try {
+      const timestamp = Date.now();
+      const safeFilename = `${timestamp}_${image.filename}`;
+      const filepath = path.join(taskDir, safeFilename);
+
+      fs.writeFileSync(filepath, image.data);
+
+      stmt.run({
+        task_id: taskId,
+        filename: image.filename,
+        filepath,
+        mimetype: image.mimetype,
+        size_bytes: image.data.length,
+      });
+
+      logger.info('imap', `Image sauvegardée pour tâche id=${taskId} : "${safeFilename}"`);
+      saved++;
+    } catch (saveError) {
+      logger.error(
+        'imap',
+        `Erreur sauvegarde image "${image.filename}" pour tâche id=${taskId} : ${(saveError as Error).message}`
+      );
+    }
+  }
+
+  return saved;
+}
+
 /** Résultat retourné par pollImap pour informer l'appelant du bilan de la synchronisation */
 export interface ImapSyncResult {
   /** Nombre d'items créés en base depuis les emails */
@@ -276,11 +345,12 @@ export interface ImapSyncResult {
 }
 
 /**
- * Interroge le serveur IMAP, lit les emails non lus et crée des items de liste
- * pour ceux dont le sujet correspond à un tag connu ([FILM], [LIVRE], etc.).
- * Marque chaque email traité comme lu, quelle que soit son issue.
- * Les emails sans tag connu sont ignorés mais marqués comme lus.
- * @returns Bilan de la synchronisation : nombre d'items créés et d'emails ignorés
+ * Interroge le serveur IMAP, lit les emails non lus et les traite selon leur tag :
+ * - [TODO] TITRE : crée une tâche en file d'attente dans le board "waiting"
+ * - Tags de liste ([FILM], [LIVRE], etc.) : crée un item dans la catégorie correspondante
+ * - Aucun tag reconnu : email ignoré, mais marqué lu / archivé / supprimé selon la config
+ * La déduplication par Message-ID garantit qu'un email ne génère jamais deux entrées.
+ * @returns Bilan de la synchronisation : nombre d'items/tâches créés et d'emails ignorés
  */
 export async function pollImap(): Promise<ImapSyncResult> {
   // Récupération des variables d'environnement IMAP
@@ -376,60 +446,112 @@ export async function pollImap(): Promise<ImapSyncResult> {
       // Phase 2 : traitement des messages collectés (insertion en base + images)
       for (const msg of collected) {
         const { uid, subject, source: rawSource } = msg;
-        const parsed = parseSubject(subject, tagToCategory);
+        const upperSubject = subject.toUpperCase();
+        const messageId = extractMessageId(rawSource);
 
-        if (!parsed) {
-          logger.info('imap', `Email ignoré (pas de tag) : sujet="${subject}"`);
-          ignored++;
-        } else {
-          const { category, cleanTitle } = parsed;
-          const messageId = extractMessageId(rawSource);
-
-          // Déduplication : si cet email a déjà été importé (message_id connu), on l'ignore
+        if (upperSubject.startsWith('[TODO]')) {
+          // Cas [TODO] : crée une tâche en file d'attente
+          // Déduplication : si cette tâche a déjà été importée (message_id connu), on l'ignore
           if (messageId) {
-            const existing = db
-              .prepare('SELECT id FROM list_items WHERE message_id = ?')
+            const existingTask = db
+              .prepare('SELECT id FROM tasks WHERE message_id = ?')
               .get(messageId);
 
-            if (existing) {
-              logger.info('imap', `Email déjà importé ignoré : message_id="${messageId}"`);
+            if (existingTask) {
+              logger.info('imap', `Tâche déjà importée ignorée : message_id="${messageId}"`);
               ignored++;
               continue;
             }
           }
 
-          const body = extractTextBody(rawSource);
+          // Extrait le titre en supprimant le tag [TODO] du début du sujet
+          const cleanTitle = subject.slice('[TODO]'.length).trim() || subject;
+          const description = extractTextBody(rawSource);
 
           try {
-            const stmt = db.prepare(`
-              INSERT INTO list_items (category, title, description, source, message_id)
-              VALUES (@category, @title, @description, 'imap', @message_id)
-            `);
+            const maxPos = (db
+              .prepare(`SELECT COALESCE(MAX(position), 0) as max_pos FROM tasks WHERE board = 'waiting'`)
+              .get() as { max_pos: number }).max_pos;
 
-            const result = stmt.run({
-              category,
+            const taskResult = db.prepare(`
+              INSERT INTO tasks (title, description, status, board, position, source, message_id)
+              VALUES (@title, @description, 'todo', 'waiting', @position, 'imap', @message_id)
+            `).run({
               title: cleanTitle,
-              description: body || null,
+              description: description || null,
+              position: maxPos + 1,
               message_id: messageId,
             });
 
-            const itemId = Number(result.lastInsertRowid);
+            const taskId = Number(taskResult.lastInsertRowid);
 
-            logger.info(
-              'imap',
-              `Item créé : id=${itemId}, catégorie="${category}", titre="${cleanTitle}"`
-            );
+            logger.info('imap', `Tâche créée en attente : id=${taskId}, titre="${cleanTitle}"`);
 
             // Extraction et sauvegarde des images présentes dans le mail
             const images = extractImagesFromMime(rawSource);
             if (images.length > 0) {
-              const savedCount = saveImagesToItem(images, itemId);
-              logger.info('imap', `${savedCount} image(s) sauvegardée(s) pour item id=${itemId}`);
+              const savedCount = saveImagesToTask(images, taskId);
+              logger.info('imap', `${savedCount} image(s) sauvegardée(s) pour tâche id=${taskId}`);
             }
 
             created++;
           } catch (dbError) {
-            logger.error('imap', `Erreur lors de l'insertion en base : ${(dbError as Error).message}`);
+            logger.error('imap', `Erreur lors de la création de la tâche : ${(dbError as Error).message}`);
+          }
+        } else {
+          // Cas liste : vérifie si le sujet correspond à une catégorie connue
+          const parsed = parseSubject(subject, tagToCategory);
+
+          if (!parsed) {
+            logger.info('imap', `Email ignoré (pas de tag) : sujet="${subject}"`);
+            ignored++;
+          } else {
+            const { category, cleanTitle } = parsed;
+
+            // Déduplication : si cet email a déjà été importé (message_id connu), on l'ignore
+            if (messageId) {
+              const existing = db
+                .prepare('SELECT id FROM list_items WHERE message_id = ?')
+                .get(messageId);
+
+              if (existing) {
+                logger.info('imap', `Email déjà importé ignoré : message_id="${messageId}"`);
+                ignored++;
+                continue;
+              }
+            }
+
+            const body = extractTextBody(rawSource);
+
+            try {
+              const result = db.prepare(`
+                INSERT INTO list_items (category, title, description, source, message_id)
+                VALUES (@category, @title, @description, 'imap', @message_id)
+              `).run({
+                category,
+                title: cleanTitle,
+                description: body || null,
+                message_id: messageId,
+              });
+
+              const itemId = Number(result.lastInsertRowid);
+
+              logger.info(
+                'imap',
+                `Item créé : id=${itemId}, catégorie="${category}", titre="${cleanTitle}"`
+              );
+
+              // Extraction et sauvegarde des images présentes dans le mail
+              const images = extractImagesFromMime(rawSource);
+              if (images.length > 0) {
+                const savedCount = saveImagesToItem(images, itemId);
+                logger.info('imap', `${savedCount} image(s) sauvegardée(s) pour item id=${itemId}`);
+              }
+
+              created++;
+            } catch (dbError) {
+              logger.error('imap', `Erreur lors de l'insertion en base : ${(dbError as Error).message}`);
+            }
           }
         }
 

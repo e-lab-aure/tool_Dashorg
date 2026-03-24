@@ -73,12 +73,22 @@ function applyMigrations(db: Database.Database): void {
     // Colonne déjà présente — migration ignorée
   }
 
-  // Migration : identifiant unique de l'email source pour éviter les doublons IMAP
+  // Migration : identifiant unique de l'email source pour éviter les doublons IMAP sur les items de liste
   try {
     db.exec('ALTER TABLE list_items ADD COLUMN message_id TEXT');
     // Index partiel : unique uniquement sur les valeurs non-nulles (items manuels non concernés)
     db.exec(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_list_items_message_id ON list_items(message_id) WHERE message_id IS NOT NULL'
+    );
+  } catch {
+    // Colonne déjà présente — migration ignorée
+  }
+
+  // Migration : identifiant unique de l'email source pour éviter les doublons IMAP sur les tâches
+  try {
+    db.exec('ALTER TABLE tasks ADD COLUMN message_id TEXT');
+    db.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id) WHERE message_id IS NOT NULL'
     );
   } catch {
     // Colonne déjà présente — migration ignorée

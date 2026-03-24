@@ -82,6 +82,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Aucun champ valide à mettre à jour' }, { status: 400 });
     }
 
+    // Cas spécial : archivage manuel depuis la file d'attente → fixe la date d'archivage
+    if (body.board === 'archive') {
+      updates.push('archived_at = CURRENT_TIMESTAMP');
+    }
+
     // Mise à jour automatique du champ updated_at
     updates.push('updated_at = CURRENT_TIMESTAMP');
     values['id'] = id;
