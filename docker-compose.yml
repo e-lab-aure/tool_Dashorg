@@ -6,14 +6,16 @@ services:
     container_name: dashorg
     restart: unless-stopped
     ports:
-      # Port expose sur le Synology — modifier le 3000 de gauche si un autre service l'utilise deja
+      # Modifier le port de gauche si 3000 est deja utilise sur le NAS
       - "3000:3000"
     volumes:
-      # Base de donnees SQLite persistee sur le NAS
-      # Adapter /volume1/docker/dashorg/data a votre arborescence Synology
+      # Code source Git — monte depuis le NAS, mis a jour par l'entrypoint
+      # Ce dossier DOIT etre un repo Git clone (git clone ... /volume1/docker/dashorg/src)
+      - /volume1/docker/dashorg/src:/app
+      # Base de donnees SQLite — separee du code pour eviter tout ecrasement
       - /volume1/docker/dashorg/data:/app/data
     env_file:
-      # Fichier de variables d'environnement a placer sur le NAS a cote de ce docker-compose.yml
-      - .env
+      # Fichier .env a placer dans /volume1/docker/dashorg/ sur le NAS
+      - /volume1/docker/dashorg/.env
     environment:
       - NODE_ENV=production
