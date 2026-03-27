@@ -17,9 +17,16 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# Copie des fichiers statiques dans le dossier standalone :
+# Next.js ne les inclut pas automatiquement dans l'output standalone.
+RUN cp -r .next/static .next/standalone/.next/static && \
+    if [ -d public ]; then cp -r public .next/standalone/public; fi
+
 # Variables d'environnement de production
+# HOSTNAME=0.0.0.0 est indispensable pour que le serveur soit accessible depuis l'exterieur.
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
 
 # Port expose par le serveur Next.js
 EXPOSE 3000
