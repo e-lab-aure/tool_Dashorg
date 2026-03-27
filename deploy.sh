@@ -40,6 +40,7 @@ podman build -f Containerfile -t "$IMAGE_NAME" .
 
 # --- Demarrage du nouveau conteneur ---
 # Le volume data assure la persistence de la base SQLite entre les deployments.
+mkdir -p "$DATA_DIR"
 log "Demarrage du conteneur..."
 podman run -d \
   --name "$CONTAINER_NAME" \
