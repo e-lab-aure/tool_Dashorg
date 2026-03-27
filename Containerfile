@@ -13,6 +13,9 @@ WORKDIR /app
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
+# Copie de tout le projet (node_modules, .git, .next, .env exclus via .containerignore)
+COPY . .
+
 # Variables d'environnement de production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
