@@ -1,35 +1,23 @@
 #!/bin/sh
 # Point d'entree du conteneur Dashorg.
-# Sequence au demarrage : git pull -> npm ci (si besoin) -> build -> start
+# Sequence au demarrage : npm ci (si besoin) -> build -> start
+# Le git pull est gere en amont par deploy.sh sur le serveur.
 
 set -e
 
-log() {
-  echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
+log() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
 
-error() {
-  echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
-}
-
-# --- Mise a jour du code source via Git ---
-log "Recuperation des dernieres modifications Git..."
-if ! git pull --ff-only; then
-  error "git pull a echoue. Verifiez la connexion ou les conflits."
-  exit 1
-fi
-
-# --- Installation des dependances si package.json a change ---
-# Compare le hash du package-lock.json avec celui enregistre lors du dernier npm ci.
+# --- Installation des dependances si package-lock.json a change ---
+# Compare le hash avec celui enregistre lors du dernier npm ci.
 LOCK_HASH_FILE="/tmp/.npm_lock_hash"
 CURRENT_HASH=$(md5sum package-lock.json | cut -d' ' -f1)
 
 if [ ! -f "$LOCK_HASH_FILE" ] || [ "$(cat $LOCK_HASH_FILE)" != "$CURRENT_HASH" ]; then
-  log "package-lock.json a change — reinstallation des dependances..."
+  log "Reinstallation des dependances..."
   npm ci
   echo "$CURRENT_HASH" > "$LOCK_HASH_FILE"
 else
-  log "Dependances a jour, installation ignoree."
+  log "Dependances a jour."
 fi
 
 # --- Build Next.js ---

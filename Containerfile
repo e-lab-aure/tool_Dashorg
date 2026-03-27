@@ -2,10 +2,9 @@
 FROM node:20-alpine
 
 # Installation des dependances systeme necessaires :
-# - git         : pour git pull automatique au demarrage via entrypoint.sh
 # - python3, make, g++ : compilation des modules natifs (better-sqlite3)
 # - libc6-compat : compatibilite binaires glibc sur Alpine (base musl)
-RUN apk add --no-cache libc6-compat python3 make g++ git
+RUN apk add --no-cache libc6-compat python3 make g++
 
 # Repertoire de travail dans le conteneur
 WORKDIR /app
@@ -21,5 +20,5 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Port expose par le serveur Next.js
 EXPOSE 3000
 
-# Point d'entree : git pull -> npm ci (si besoin) -> build -> start
+# Point d'entree : npm ci (si besoin) -> build -> start
 ENTRYPOINT ["./entrypoint.sh"]
