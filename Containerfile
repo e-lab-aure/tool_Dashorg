@@ -1,20 +1,21 @@
-# Image de base Node.js 20 sur Alpine Linux (legere et securisee)
-FROM node:20-alpine
+# Image de base Node.js 20 Debian slim (meilleure compatibilite pour better-sqlite3)
+FROM node:20-slim
 
-# Installation des dependances systeme necessaires :
-# - python3, make, g++ : compilation des modules natifs (better-sqlite3)
-# - libc6-compat : compatibilite binaires glibc sur Alpine (base musl)
-RUN apk add --no-cache libc6-compat python3 make g++
+# Installation des dependances systeme pour compiler les modules natifs (better-sqlite3)
+RUN apt-get update && apt-get install -y \
+  python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 
-# Repertoire de travail dans le conteneur
 WORKDIR /app
 
-# Copie du script d'entree et attribution des droits d'execution
-COPY entrypoint.sh ./entrypoint.sh
-RUN chmod 755 ./entrypoint.sh
+# Copie des manifestes en premier pour profiter du cache de couche Docker/Podman :
+# si package.json et package-lock.json n'ont pas change, npm ci n'est pas reexecute.
+COPY package*.json ./
+RUN npm ci
 
-# Copie de tout le projet (node_modules, .git, .next, .env exclus via .containerignore)
+# Copie du reste du projet et build de production
 COPY . .
+RUN npm run build
 
 # Variables d'environnement de production
 ENV NODE_ENV=production
@@ -23,5 +24,4 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Port expose par le serveur Next.js
 EXPOSE 3000
 
-# Point d'entree : npm ci (si besoin) -> build -> start
 ENTRYPOINT ["./entrypoint.sh"]
