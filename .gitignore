@@ -5,7 +5,7 @@ node_modules/
 .next/
 out/
 
-# Données locales et uploads (volumes Docker)
+# Données locales et uploads
 data/
 uploads/
 
