@@ -35,7 +35,6 @@ npm-debug.log*
 
 # Fichiers TypeScript compilés
 *.tsbuildinfo
-next-env.d.ts
 
 # Instructions locales Claude et configuration locale
 CLAUDE.md
