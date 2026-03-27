@@ -11,7 +11,7 @@ WORKDIR /app
 
 # Copie du script d'entree et attribution des droits d'execution
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+RUN chmod 755 ./entrypoint.sh
 
 # Copie de tout le projet (node_modules, .git, .next, .env exclus via .containerignore)
 COPY . .
