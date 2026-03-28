@@ -191,11 +191,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       //    (l'index UNIQUE sur url protege contre les reimportations apres refresh)
       if (backup.rss_articles && backup.rss_articles.length > 0) {
         const insertArticle = db.prepare(`
-          INSERT OR IGNORE INTO rss_articles (id, feed_id, title, url, published_at, created_at)
-          VALUES (@id, @feed_id, @title, @url, @published_at, @created_at)
+          INSERT OR IGNORE INTO rss_articles (id, feed_id, title, url, description, image_url, published_at, created_at)
+          VALUES (@id, @feed_id, @title, @url, @description, @image_url, @published_at, @created_at)
         `);
         for (const article of backup.rss_articles) {
-          insertArticle.run(article as RssArticle);
+          insertArticle.run({
+            ...(article as RssArticle),
+            description: (article as RssArticle).description ?? null,
+            image_url: (article as RssArticle).image_url ?? null,
+          });
         }
       }
     });

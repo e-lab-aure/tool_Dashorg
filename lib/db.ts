@@ -118,6 +118,8 @@ function applyMigrations(db: Database.Database): void {
         feed_id      INTEGER NOT NULL REFERENCES rss_feeds(id) ON DELETE CASCADE,
         title        TEXT NOT NULL,
         url          TEXT NOT NULL UNIQUE,
+        description  TEXT,
+        image_url    TEXT,
         published_at DATETIME,
         created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -127,6 +129,14 @@ function applyMigrations(db: Database.Database): void {
   } catch {
     // Tables déjà créées — migration ignorée
   }
+
+  // Migration : description et image_url sur les articles RSS existants
+  try {
+    db.exec('ALTER TABLE rss_articles ADD COLUMN description TEXT');
+  } catch { /* Colonne déjà présente */ }
+  try {
+    db.exec('ALTER TABLE rss_articles ADD COLUMN image_url TEXT');
+  } catch { /* Colonne déjà présente */ }
 }
 
 /**

@@ -38,6 +38,10 @@ export interface RssArticle {
   feed_name: string;
   title: string;
   url: string;
+  /** Résumé en texte brut extrait du flux */
+  description: string | null;
+  /** URL de l'image associée à l'article (enclosure, media:content ou première img du contenu) */
+  image_url: string | null;
   published_at: string | null;
   created_at: string;
 }

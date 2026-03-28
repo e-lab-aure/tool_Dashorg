@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import type { RssArticle } from '@/lib/types';
 
 /** Props du composant RssBanner */
@@ -104,7 +105,7 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
     }
   }
 
-  // Si aucun flux/article, n'affiche pas le bandeau
+  // Si aucun flux/article, affiche un bandeau minimal avec accès aux paramètres
   if (articles.length === 0) {
     return (
       <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-1.5 flex items-center justify-between gap-4">
@@ -120,6 +121,13 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
           >
             {isRefreshing ? '...' : '↻'}
           </button>
+          <Link
+            href="/rss"
+            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            title="Ouvrir le lecteur RSS"
+          >
+            ⊞
+          </Link>
           <button
             onClick={onOpenSettings}
             className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -202,6 +210,13 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
           >
             {isRefreshing ? '...' : '↻'}
           </button>
+          <Link
+            href="/rss"
+            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            title="Ouvrir le lecteur RSS"
+          >
+            ⊞
+          </Link>
           <button
             onClick={onOpenSettings}
             className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
