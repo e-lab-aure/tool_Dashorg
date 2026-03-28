@@ -138,32 +138,22 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
   const canNext = offset + 3 < articles.length;
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-1.5 flex items-center gap-2">
+    <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 flex gap-3">
 
-      {/* Bouton précédent */}
-      <button
-        onClick={() => setOffset((o) => Math.max(0, o - 3))}
-        disabled={!canPrev}
-        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 text-xs flex-shrink-0 transition-colors"
-        aria-label="Articles précédents"
-      >
-        ◀
-      </button>
-
-      {/* Articles (3 visibles) — affichage inline séparé par des traits verticaux */}
-      <div className="flex-1 flex items-center min-w-0 divide-x divide-gray-200 dark:divide-gray-700">
+      {/* Liste des 3 articles empilés verticalement, séparés par des traits horizontaux */}
+      <div className="flex-1 min-w-0 divide-y divide-gray-200 dark:divide-gray-700">
         {visible.map((article) => (
           <button
             key={article.id}
             onClick={() => handleArticleClick(article)}
-            className="flex-1 text-left group min-w-0 px-3 first:pl-0 flex items-baseline gap-1.5 truncate"
+            className="w-full text-left group py-1.5 first:pt-0 last:pb-0 flex items-baseline gap-2 min-w-0"
             title={article.title}
           >
-            <span className="text-xs text-blue-500 dark:text-blue-400 font-medium flex-shrink-0">
+            <span className="text-xs text-blue-500 dark:text-blue-400 font-semibold flex-shrink-0">
               {article.feed_name}
             </span>
             {article.published_at && (
-              <span className="text-xs text-gray-400 dark:text-gray-600 flex-shrink-0">
+              <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
                 {formatDate(article.published_at)}
               </span>
             )}
@@ -173,42 +163,53 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
           </button>
         ))}
 
-        {/* Remplissage si moins de 3 articles */}
+        {/* Remplissage silencieux si moins de 3 articles */}
         {visible.length < 3 && Array.from({ length: 3 - visible.length }).map((_, i) => (
-          <div key={`empty-${i}`} className="flex-1 px-3" />
+          <div key={`empty-${i}`} className="py-1.5 last:pb-0" />
         ))}
       </div>
 
-      {/* Bouton suivant */}
-      <button
-        onClick={() => setOffset((o) => Math.min(articles.length - 1, o + 3))}
-        disabled={!canNext}
-        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 text-xs flex-shrink-0 transition-colors"
-        aria-label="Articles suivants"
-      >
-        ▶
-      </button>
+      {/* Contrôles navigation + actions — colonne droite */}
+      <div className="flex flex-col items-center justify-between flex-shrink-0 border-l border-gray-200 dark:border-gray-700 pl-3">
+        <button
+          onClick={() => setOffset((o) => Math.max(0, o - 3))}
+          disabled={!canPrev}
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 text-xs transition-colors"
+          aria-label="Articles précédents"
+        >
+          ▲
+        </button>
 
-      {/* Compteur + contrôles */}
-      <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 pl-2 ml-1">
-        <span className="text-xs text-gray-400 tabular-nums">
+        <span className="text-xs text-gray-400 tabular-nums leading-none">
           {offset + 1}-{Math.min(offset + 3, articles.length)}/{articles.length}
         </span>
+
         <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors"
-          title="Rafraîchir les flux"
+          onClick={() => setOffset((o) => Math.min(articles.length - 1, o + 3))}
+          disabled={!canNext}
+          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 text-xs transition-colors"
+          aria-label="Articles suivants"
         >
-          {isRefreshing ? '...' : '↻'}
+          ▼
         </button>
-        <button
-          onClick={onOpenSettings}
-          className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          title="Gérer les flux RSS"
-        >
-          ⚙
-        </button>
+
+        <div className="flex gap-2 mt-1">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors"
+            title="Rafraîchir les flux"
+          >
+            {isRefreshing ? '...' : '↻'}
+          </button>
+          <button
+            onClick={onOpenSettings}
+            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            title="Gérer les flux RSS"
+          >
+            ⚙
+          </button>
+        </div>
       </div>
     </div>
   );
