@@ -243,8 +243,10 @@ export default function BackupPanel({ onImportSuccess }: BackupPanelProps) {
                       </p>
                       <ul className="text-xs text-green-600 dark:text-green-500 space-y-0.5">
                         <li>{status.result.restored.tasks} tache(s)</li>
-                        <li>{status.result.restored.list_categories} categorie(s)</li>
+                        <li>{status.result.restored.list_categories} categorie(s) de liste</li>
                         <li>{status.result.restored.list_items} item(s) de listes</li>
+                        <li>{status.result.restored.attachments} piece(s) jointe(s)</li>
+                        <li>{status.result.restored.list_item_images} image(s) d'items</li>
                         <li>{status.result.restored.fichiers} fichier(s) sur disque</li>
                       </ul>
                     </div>
