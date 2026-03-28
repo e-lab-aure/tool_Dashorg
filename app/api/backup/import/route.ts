@@ -118,11 +118,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // 2. Restauration des taches — linked_task_id insere a NULL pour eviter
       //    les violations FK en cas d'insertion hors ordre
       const insertTask = db.prepare(`
-        INSERT INTO tasks (id, title, description, status, board, slot_type, position, source, linked_task_id, archived_at, message_id, created_at, updated_at)
-        VALUES (@id, @title, @description, @status, @board, @slot_type, @position, @source, NULL, @archived_at, @message_id, @created_at, @updated_at)
+        INSERT INTO tasks (id, title, description, status, board, slot_type, position, source, linked_task_id, archived_at, done_at, message_id, created_at, updated_at)
+        VALUES (@id, @title, @description, @status, @board, @slot_type, @position, @source, NULL, @archived_at, @done_at, @message_id, @created_at, @updated_at)
       `);
       for (const task of backup.tasks) {
-        insertTask.run(task);
+        insertTask.run({ ...task, done_at: (task as unknown as Record<string, unknown>)['done_at'] ?? null });
       }
 
       // Mise a jour de linked_task_id en seconde passe, une fois toutes les taches inserees

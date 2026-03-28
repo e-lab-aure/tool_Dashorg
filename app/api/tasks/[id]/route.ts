@@ -88,6 +88,15 @@ export async function PATCH(
       updates.push('archived_at = CURRENT_TIMESTAMP');
     }
 
+    // Gestion de done_at : horodatage du passage en statut "done"
+    // Permet l'archivage automatique le lendemain si le rollover n'a pas tourné
+    if (body.status === 'done' && currentTask.status !== 'done') {
+      updates.push('done_at = CURRENT_TIMESTAMP');
+    } else if (body.status !== undefined && body.status !== 'done' && currentTask.status === 'done') {
+      // Restauration depuis done → efface le timestamp
+      updates.push('done_at = NULL');
+    }
+
     // Mise à jour automatique du champ updated_at
     updates.push('updated_at = CURRENT_TIMESTAMP');
     values['id'] = id;

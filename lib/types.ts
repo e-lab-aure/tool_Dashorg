@@ -17,8 +17,29 @@ export interface Task {
   linked_task_id: number | null;
   /** Date d'archivage, renseignée lors du rollover pour les tâches terminées */
   archived_at: string | null;
+  /** Date a laquelle la tâche a été marquée comme terminée (done) */
+  done_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Représente un flux RSS suivi */
+export interface RssFeed {
+  id: number;
+  url: string;
+  name: string;
+  created_at: string;
+}
+
+/** Représente un article RSS récupéré depuis un flux */
+export interface RssArticle {
+  id: number;
+  feed_id: number;
+  feed_name: string;
+  title: string;
+  url: string;
+  published_at: string | null;
+  created_at: string;
 }
 
 /** Représente une pièce jointe liée à une tâche */

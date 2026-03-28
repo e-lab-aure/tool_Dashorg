@@ -16,6 +16,8 @@ import ArchivePanel from '@/components/ArchivePanel';
 import ListPanel from '@/components/ListPanel';
 import TaskDetail from '@/components/TaskDetail';
 import BackupPanel from '@/components/BackupPanel';
+import RssBanner from '@/app/RssBanner';
+import RssModal from '@/app/RssModal';
 import type { Task, ListItem } from '@/lib/types';
 
 /**
@@ -33,6 +35,7 @@ export default function HomePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [isRssModalOpen, setIsRssModalOpen] = useState(false);
 
   /**
    * Charge toutes les données depuis les APIs au montage du composant.
@@ -379,6 +382,9 @@ export default function HomePage() {
         </div>
       </header>
 
+      {/* Bandeau RSS sous le header */}
+      <RssBanner onOpenSettings={() => setIsRssModalOpen(true)} />
+
       {/* Contenu principal */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-10">
 
@@ -451,6 +457,11 @@ export default function HomePage() {
           onClose={() => setSelectedTask(null)}
           onUpdate={handleTaskUpdate}
         />
+      )}
+
+      {/* Modale de gestion des flux RSS */}
+      {isRssModalOpen && (
+        <RssModal onClose={() => setIsRssModalOpen(false)} />
       )}
     </div>
   );

@@ -93,6 +93,40 @@ function applyMigrations(db: Database.Database): void {
   } catch {
     // Colonne déjà présente — migration ignorée
   }
+
+  // Migration : horodatage du passage en statut "done"
+  // Permet l'archivage automatique le lendemain si le rollover de 6h00 n'a pas pu s'exécuter
+  try {
+    db.exec('ALTER TABLE tasks ADD COLUMN done_at DATETIME');
+  } catch {
+    // Colonne déjà présente — migration ignorée
+  }
+
+  // Migration : tables RSS (flux et articles)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS rss_feeds (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        url        TEXT NOT NULL UNIQUE,
+        name       TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS rss_articles (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        feed_id      INTEGER NOT NULL REFERENCES rss_feeds(id) ON DELETE CASCADE,
+        title        TEXT NOT NULL,
+        url          TEXT NOT NULL UNIQUE,
+        published_at DATETIME,
+        created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_rss_articles_feed_id ON rss_articles(feed_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_rss_articles_published ON rss_articles(published_at DESC)');
+  } catch {
+    // Tables déjà créées — migration ignorée
+  }
 }
 
 /**

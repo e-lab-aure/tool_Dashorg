@@ -11,23 +11,54 @@
 import cron from 'node-cron';
 import { db } from '@/lib/db';
 import { pollImap } from '@/lib/imap';
+import { refreshAllFeeds } from '@/lib/rss';
 import { logger } from '@/lib/logger';
+
+/**
+ * Archive les tâches marquées "done" lors d'un jour calendaire précédent.
+ * Protège contre les cas où le rollover de 6h00 n'a pas pu s'exécuter
+ * (redémarrage du serveur, indisponibilité, etc.).
+ * S'appuie sur la colonne done_at pour une détection fiable.
+ * @returns Nombre de tâches archivées
+ */
+function archiverTachesDoneEnRetard(): number {
+  const result = db
+    .prepare(
+      `UPDATE tasks
+       SET board = 'archive', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'done'
+         AND done_at IS NOT NULL
+         AND date(done_at, 'localtime') < date('now', 'localtime')
+         AND board != 'archive'`
+    )
+    .run();
+
+  if (result.changes > 0) {
+    logger.info('cron', `Archivage rattrapage — ${result.changes} tâche(s) done du jour précédent archivée(s)`);
+  }
+
+  return result.changes;
+}
 
 /**
  * Effectue le rollover des tâches du jour vers demain.
  *
  * Logique :
- * 1. Les tâches "todo" et "in_progress" du board "today" deviennent board "tomorrow" avec slot_type "locked"
- * 2. Les tâches "tomorrow" existantes (slot_type "free") restent inchangées
- * 3. Les tâches du board "tomorrow" (locked + free) basculent vers le board "today"
- * 4. Les positions sont recalculées de 1 à N
+ * 1. Archivage rattrapage des tâches done de la veille (done_at < aujourd'hui)
+ * 2. Les tâches "todo" et "in_progress" du board "today" deviennent board "tomorrow" avec slot_type "locked"
+ * 3. Les tâches "tomorrow" existantes (slot_type "free") restent inchangées
+ * 4. Les tâches du board "tomorrow" (locked + free) basculent vers le board "today"
+ * 5. Les positions sont recalculées de 1 à N
  */
 function executeRollover(): void {
   logger.info('cron', 'Démarrage du rollover quotidien');
 
   // Transaction atomique pour garantir la cohérence des données
   const rolloverTransaction = db.transaction(() => {
-    // Étape 1 : les tâches terminées du jour partent en archive
+    // Étape 1a : rattrapage — tâches done d'un jour précédent sur n'importe quel board
+    archiverTachesDoneEnRetard();
+
+    // Étape 1b : les tâches terminées du jour partent en archive (chemin normal)
     const archivedCount = db
       .prepare(
         `UPDATE tasks
@@ -99,6 +130,20 @@ async function executePollImap(): Promise<void> {
 }
 
 /**
+ * Rafraîchit tous les flux RSS avec gestion des erreurs.
+ * Les erreurs sont capturées et loguées sans interrompre le cron.
+ */
+async function executeRssRefresh(): Promise<void> {
+  logger.info('cron', 'Démarrage du rafraîchissement RSS');
+  try {
+    const count = await refreshAllFeeds();
+    logger.info('cron', `Rafraîchissement RSS terminé — ${count} nouvel(s) article(s) importé(s)`);
+  } catch (error) {
+    logger.error('cron', `Échec du rafraîchissement RSS : ${(error as Error).message}`);
+  }
+}
+
+/**
  * Initialise les jobs cron de l'application.
  * Utilise un guard global pour éviter la double initialisation lors du hot-reload Next.js.
  * Cette fonction est idempotente.
@@ -111,6 +156,16 @@ function initCron(): void {
     logger.debug('cron', 'Cron déjà initialisé — initialisation ignorée');
     return;
   }
+
+  // Rattrapage au démarrage : archive les tâches done laissées de la veille
+  // (si le serveur était arrêté lors du rollover de 6h00)
+  const rattrapageCount = archiverTachesDoneEnRetard();
+  if (rattrapageCount > 0) {
+    logger.info('cron', `Démarrage — ${rattrapageCount} tâche(s) done en retard archivée(s)`);
+  }
+
+  // Rafraîchissement RSS au démarrage pour peupler les flux dès le lancement
+  executeRssRefresh();
 
   // Job 1 : rollover quotidien à 6h00 tous les jours
   cron.schedule('0 6 * * *', () => {
@@ -127,6 +182,13 @@ function initCron(): void {
   });
 
   logger.info('cron', 'Job planifié : polling IMAP toutes les 15 minutes');
+
+  // Job 3 : rafraîchissement RSS toutes les 30 minutes
+  cron.schedule('*/30 * * * *', () => {
+    executeRssRefresh();
+  });
+
+  logger.info('cron', 'Job planifié : rafraîchissement RSS toutes les 30 minutes');
 
   // Marque l'initialisation comme effectuée pour éviter les doublons
   globalObj['__cronInitialized'] = true;
