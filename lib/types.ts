@@ -113,4 +113,8 @@ export interface BackupData {
   attachments: Attachment[];
   list_items: ListItem[];
   list_item_images: ListItemImage[];
+  /** Flux RSS suivis — optionnel pour compatibilité avec les anciens backups */
+  rss_feeds?: RssFeed[];
+  /** Articles RSS non lus — optionnel pour compatibilité avec les anciens backups */
+  rss_articles?: RssArticle[];
 }

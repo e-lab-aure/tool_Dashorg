@@ -15,7 +15,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
-import type { Task, Attachment, ListItem, ListItemImage, ListCategory, BackupData } from '@/lib/types';
+import type { Task, Attachment, ListItem, ListItemImage, ListCategory, RssFeed, RssArticle, BackupData } from '@/lib/types';
 
 /** Repertoire racine des uploads selon l'environnement */
 const UPLOADS_ROOT =
@@ -51,6 +51,16 @@ export async function GET(): Promise<NextResponse> {
       .prepare('SELECT * FROM list_item_images ORDER BY id ASC')
       .all() as ListItemImage[];
 
+    const rss_feeds = db
+      .prepare('SELECT * FROM rss_feeds ORDER BY id ASC')
+      .all() as RssFeed[];
+
+    // Les articles sont exportes pour eviter de les reperdre apres restauration.
+    // Ils seront de toute facon dedoubles a la prochaine synchro grace a l'index UNIQUE sur url.
+    const rss_articles = db
+      .prepare('SELECT * FROM rss_articles ORDER BY id ASC')
+      .all() as RssArticle[];
+
     const backupData: BackupData = {
       version: 1,
       exported_at: new Date().toISOString(),
@@ -59,6 +69,8 @@ export async function GET(): Promise<NextResponse> {
       attachments,
       list_items,
       list_item_images,
+      rss_feeds,
+      rss_articles,
     };
 
     // --- Construction du ZIP ---
@@ -87,7 +99,7 @@ export async function GET(): Promise<NextResponse> {
 
     logger.info(
       'api/backup/export',
-      `GET — Export genere : ${tasks.length} taches, ${list_items.length} items, ${attachments.length} pieces jointes, ${list_item_images.length} images — ${zipBuffer.length} octets`
+      `GET — Export genere : ${tasks.length} taches, ${list_items.length} items, ${attachments.length} pieces jointes, ${list_item_images.length} images, ${rss_feeds.length} flux RSS, ${rss_articles.length} articles RSS — ${zipBuffer.length} octets`
     );
 
     return new NextResponse(zipBuffer, {

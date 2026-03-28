@@ -11,6 +11,8 @@
  *   4. list_items
  *   5. list_item_images
  *   6. Mise a jour de tasks.linked_task_id
+ *   7. rss_feeds
+ *   8. rss_articles
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +21,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import fs from 'fs';
 import path from 'path';
-import type { BackupData } from '@/lib/types';
+import type { BackupData, RssFeed, RssArticle } from '@/lib/types';
 
 /** Repertoire racine des uploads selon l'environnement */
 const UPLOADS_ROOT =
@@ -96,6 +98,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const restaurer = db.transaction(() => {
 
       // Suppression dans l'ordre inverse des dependances FK
+      db.exec('DELETE FROM rss_articles');
+      db.exec('DELETE FROM rss_feeds');
       db.exec('DELETE FROM list_item_images');
       db.exec('DELETE FROM attachments');
       db.exec('DELETE FROM list_items');
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       db.exec('DELETE FROM tasks');
 
       // Remise a zero des sequences AUTOINCREMENT
-      db.exec("DELETE FROM sqlite_sequence WHERE name IN ('tasks','attachments','list_items','list_item_images','list_categories')");
+      db.exec("DELETE FROM sqlite_sequence WHERE name IN ('tasks','attachments','list_items','list_item_images','list_categories','rss_feeds','rss_articles')");
 
       // 1. Restauration des categories de listes
       const insertCategory = db.prepare(`
@@ -171,6 +175,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       for (const img of backup.list_item_images) {
         insertImage.run({ ...img, filepath: recalculerFilepath(img.filepath) });
       }
+
+      // 6. Restauration des flux RSS — compatibilite avec les anciens backups sans RSS
+      if (backup.rss_feeds && backup.rss_feeds.length > 0) {
+        const insertFeed = db.prepare(`
+          INSERT INTO rss_feeds (id, url, name, created_at)
+          VALUES (@id, @url, @name, @created_at)
+        `);
+        for (const feed of backup.rss_feeds) {
+          insertFeed.run(feed as RssFeed);
+        }
+      }
+
+      // 7. Restauration des articles RSS — INSERT OR IGNORE pour tolerer les doublons
+      //    (l'index UNIQUE sur url protege contre les reimportations apres refresh)
+      if (backup.rss_articles && backup.rss_articles.length > 0) {
+        const insertArticle = db.prepare(`
+          INSERT OR IGNORE INTO rss_articles (id, feed_id, title, url, published_at, created_at)
+          VALUES (@id, @feed_id, @title, @url, @published_at, @created_at)
+        `);
+        for (const article of backup.rss_articles) {
+          insertArticle.run(article as RssArticle);
+        }
+      }
     });
 
     restaurer();
@@ -210,10 +237,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    const rssFeedsCount = backup.rss_feeds?.length ?? 0;
+    const rssArticlesCount = backup.rss_articles?.length ?? 0;
+
     logger.info(
       'api/backup/import',
       `POST — Import termine : ${backup.tasks.length} taches, ${backup.list_items.length} items, ` +
       `${backup.attachments.length} pieces jointes, ${backup.list_item_images.length} images, ` +
+      `${rssFeedsCount} flux RSS, ${rssArticlesCount} articles RSS, ` +
       `${fichiersRestores} fichiers restaures, ${fichiersIgnores} fichiers ignores`
     );
 
@@ -226,6 +257,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         attachments: backup.attachments.length,
         list_items: backup.list_items.length,
         list_item_images: backup.list_item_images.length,
+        rss_feeds: rssFeedsCount,
+        rss_articles: rssArticlesCount,
         fichiers: fichiersRestores,
       },
     });
