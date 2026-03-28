@@ -96,8 +96,8 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
   }
 
   const visibleHeight = VISIBLE_COUNT * ITEM_HEIGHT;
-  // 3 secondes par article pour une vitesse de lecture confortable
-  const duration = articles.length * 3;
+  // 6 secondes par article pour un defilement confortable (env. 4.7px/s)
+  const duration = articles.length * 6;
   // Défilement uniquement s'il y a plus d'articles que de lignes visibles
   const shouldScroll = articles.length > VISIBLE_COUNT;
 
