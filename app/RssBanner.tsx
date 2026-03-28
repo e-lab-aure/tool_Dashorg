@@ -112,20 +112,21 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
         }
       `}</style>
 
-      {/* Zone de défilement */}
+      {/* Zone de défilement — perspective cree un contexte 3D qui stabilise le rendu du texte */}
       <div
         className="flex-1 min-w-0 overflow-hidden"
-        style={{ height: visibleHeight }}
+        style={{ height: visibleHeight, perspective: 1000 }}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
-        {/* Liste doublée pour un loop sans saut visible — will-change evite le rendu subpixel */}
+        {/* Liste doublée pour un loop sans saut visible */}
         <div
           style={shouldScroll ? {
             animation: `rss-marquee ${duration}s linear infinite`,
             animationPlayState: isPaused ? 'paused' : 'running',
             willChange: 'transform',
             backfaceVisibility: 'hidden',
+            WebkitFontSmoothing: 'antialiased',
           } : undefined}
         >
           {/* Première passe */}
