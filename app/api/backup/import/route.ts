@@ -28,6 +28,24 @@ const UPLOADS_ROOT =
     : path.join(process.cwd(), 'uploads');
 
 /**
+ * Recalcule le chemin absolu d'un fichier uploade en remplacant l'ancien
+ * UPLOADS_ROOT (issu du backup) par le UPLOADS_ROOT courant de l'environnement.
+ * Gere les deux separateurs (Unix et Windows) pour assurer la portabilite.
+ * @param ancienFilepath - Chemin absolu stocke dans le backup
+ * @returns Nouveau chemin absolu valide dans l'environnement courant
+ */
+function recalculerFilepath(ancienFilepath: string): string {
+  // Normalise les separateurs de chemin en forward slash pour l'analyse
+  const normalise = ancienFilepath.replace(/\\/g, '/');
+  // Cherche le marqueur de structure relative (uploads/lists/ ou uploads/tasks/)
+  const idx = normalise.indexOf('/uploads/');
+  if (idx === -1) return ancienFilepath;
+  // Extrait la partie relative : ex. "lists/5/1234_img.jpg" ou "tasks/3/file.png"
+  const relative = normalise.slice(idx + '/uploads/'.length);
+  return path.join(UPLOADS_ROOT, relative);
+}
+
+/**
  * Importe un fichier ZIP de backup Dashorg.
  * Efface toutes les donnees existantes avant de restaurer.
  * @param request - Requete multipart/form-data avec le champ "file" (ZIP)
@@ -115,13 +133,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
 
-      // 3. Restauration des pieces jointes
+      // 3. Restauration des pieces jointes — recalcul du filepath pour l'environnement courant
       const insertAttachment = db.prepare(`
         INSERT INTO attachments (id, task_id, filename, filepath, mimetype, size_bytes, created_at)
         VALUES (@id, @task_id, @filename, @filepath, @mimetype, @size_bytes, @created_at)
       `);
       for (const att of backup.attachments) {
-        insertAttachment.run(att);
+        insertAttachment.run({ ...att, filepath: recalculerFilepath(att.filepath) });
       }
 
       // 4. Restauration des items de listes (sans le champ virtuel "images")
@@ -145,13 +163,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
       }
 
-      // 5. Restauration des images d'items
+      // 5. Restauration des images d'items — recalcul du filepath pour l'environnement courant
       const insertImage = db.prepare(`
         INSERT INTO list_item_images (id, list_item_id, filename, filepath, mimetype, size_bytes, created_at)
         VALUES (@id, @list_item_id, @filename, @filepath, @mimetype, @size_bytes, @created_at)
       `);
       for (const img of backup.list_item_images) {
-        insertImage.run(img);
+        insertImage.run({ ...img, filepath: recalculerFilepath(img.filepath) });
       }
     });
 
