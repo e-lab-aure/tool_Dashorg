@@ -104,11 +104,11 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
   return (
     <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 flex gap-3 items-center">
 
-      {/* Keyframes de l'animation de défilement */}
+      {/* Keyframes de l'animation de défilement — translate3d force l'acceleration GPU */}
       <style>{`
         @keyframes rss-marquee {
-          0%   { transform: translateY(0); }
-          100% { transform: translateY(-50%); }
+          0%   { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(0, -50%, 0); }
         }
       `}</style>
 
@@ -119,11 +119,13 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
-        {/* Liste doublée pour un loop sans saut visible */}
+        {/* Liste doublée pour un loop sans saut visible — will-change evite le rendu subpixel */}
         <div
           style={shouldScroll ? {
             animation: `rss-marquee ${duration}s linear infinite`,
             animationPlayState: isPaused ? 'paused' : 'running',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
           } : undefined}
         >
           {/* Première passe */}
