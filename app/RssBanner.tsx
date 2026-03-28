@@ -64,6 +64,19 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
     return () => clearInterval(interval);
   }, [loadArticles]);
 
+  // Défilement automatique toutes les 5 secondes
+  useEffect(() => {
+    if (articles.length <= 3) return;
+    const timer = setInterval(() => {
+      setOffset((o) => {
+        const next = o + 3;
+        // Revient au début une fois la fin atteinte
+        return next >= articles.length ? 0 : next;
+      });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [articles.length]);
+
   /**
    * Marque un article comme lu : le supprime via l'API et le retire de l'état local.
    * Ouvre le lien dans un nouvel onglet.
