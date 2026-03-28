@@ -82,7 +82,13 @@ export default function RssPage() {
 
       const data = await res.json() as RssArticle[];
 
-      setArticles((prev) => reset ? data : [...prev, ...data]);
+      setArticles((prev) => {
+        if (reset) return data;
+        // Déduplication par id : évite les doublons causés par le décalage
+        // d'offset lorsque des articles sont supprimés (marqués lus) entre deux pages
+        const existingIds = new Set(prev.map((a) => a.id));
+        return [...prev, ...data.filter((a) => !existingIds.has(a.id))];
+      });
       setHasMore(data.length === PAGE_SIZE);
       setOffset(currentOffset + data.length);
     } catch {
