@@ -25,10 +25,11 @@ interface CategoryPatchBody {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: rawId } = await params;
+    const id = parseInt(rawId, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Identifiant invalide' }, { status: 400 });
     }
@@ -82,10 +83,11 @@ export async function PATCH(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: rawId } = await params;
+    const id = parseInt(rawId, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Identifiant invalide' }, { status: 400 });
     }

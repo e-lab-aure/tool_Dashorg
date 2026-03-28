@@ -15,6 +15,7 @@ import WaitingQueue from '@/components/WaitingQueue';
 import ArchivePanel from '@/components/ArchivePanel';
 import ListPanel from '@/components/ListPanel';
 import TaskDetail from '@/components/TaskDetail';
+import BackupPanel from '@/components/BackupPanel';
 import type { Task, ListItem } from '@/lib/types';
 
 /**
@@ -372,6 +373,9 @@ export default function HomePage() {
           >
             {isDark ? '☀️' : '🌙'}
           </button>
+
+          {/* Engrenage parametres */}
+          <BackupPanel onImportSuccess={loadData} />
         </div>
       </header>
 
@@ -436,6 +440,7 @@ export default function HomePage() {
             onReorder={handleListReorder}
           />
         </section>
+
 
       </main>
 

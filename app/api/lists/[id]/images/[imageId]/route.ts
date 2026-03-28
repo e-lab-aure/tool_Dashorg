@@ -13,7 +13,7 @@ import type { ListItemImage } from '@/lib/types';
 
 /** Paramètres de route : id de l'item et id de l'image */
 interface RouteParams {
-  params: { id: string; imageId: string };
+  params: Promise<{ id: string; imageId: string }>;
 }
 
 /**
@@ -28,8 +28,9 @@ export async function GET(
   { params }: RouteParams
 ): Promise<NextResponse> {
   try {
-    const itemId = parseInt(params.id, 10);
-    const imageId = parseInt(params.imageId, 10);
+    const { id: rawItemId, imageId: rawImageId } = await params;
+    const itemId = parseInt(rawItemId, 10);
+    const imageId = parseInt(rawImageId, 10);
 
     if (isNaN(itemId) || isNaN(imageId)) {
       return NextResponse.json({ error: 'Identifiant invalide' }, { status: 400 });
@@ -79,8 +80,9 @@ export async function DELETE(
   { params }: RouteParams
 ): Promise<NextResponse> {
   try {
-    const itemId = parseInt(params.id, 10);
-    const imageId = parseInt(params.imageId, 10);
+    const { id: rawItemId, imageId: rawImageId } = await params;
+    const itemId = parseInt(rawItemId, 10);
+    const imageId = parseInt(rawImageId, 10);
 
     if (isNaN(itemId) || isNaN(imageId)) {
       return NextResponse.json({ error: 'Identifiant invalide' }, { status: 400 });

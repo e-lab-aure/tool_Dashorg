@@ -80,3 +80,16 @@ export interface TomorrowSlots {
   free: number;
   total: number;
 }
+
+/** Structure d'un fichier de sauvegarde Dashorg */
+export interface BackupData {
+  /** Version du format de backup, pour la compatibilité future */
+  version: number;
+  /** Date et heure de l'export en ISO 8601 */
+  exported_at: string;
+  list_categories: ListCategory[];
+  tasks: Task[];
+  attachments: Attachment[];
+  list_items: ListItem[];
+  list_item_images: ListItemImage[];
+}
