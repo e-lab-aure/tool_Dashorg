@@ -3,25 +3,28 @@
 /**
  * @module RssBanner
  * @description Bandeau d'actualités RSS positionné sous le header.
- * Affiche les articles par groupes de 3 dans un bandeau horizontal scrollable.
- * Un clic sur un article l'ouvre dans un nouvel onglet et le marque comme lu (disparition).
- * Un bouton de gestion ouvre la modale de configuration des flux.
+ * Les articles défilent vers le haut en continu (marquee CSS).
+ * Pause automatique au survol. Clic = ouvre l'article + marque comme lu.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import type { RssArticle } from '@/lib/types';
 
+/** Hauteur fixe de chaque ligne d'article en pixels */
+const ITEM_HEIGHT = 28;
+
+/** Nombre d'articles affichés simultanément */
+const VISIBLE_COUNT = 3;
+
 /** Props du composant RssBanner */
 interface RssBannerProps {
-  /** Callback pour ouvrir la modale de gestion des flux */
   onOpenSettings: () => void;
 }
 
 /**
- * Formate une date ISO en format court lisible (ex: "27 mars").
- * Retourne une chaîne vide si la date est invalide ou absente.
- * @param iso - Chaîne de date ISO 8601
+ * Formate une date ISO en format court.
+ * @param iso - Date ISO 8601
  */
 function formatDate(iso: string | null): string {
   if (!iso) return '';
@@ -33,212 +36,160 @@ function formatDate(iso: string | null): string {
 }
 
 /**
- * Bandeau d'actualités RSS.
- * Charge les articles au montage et se rafraîchit toutes les 5 minutes.
+ * Bandeau RSS avec défilement vertical continu.
  */
 export default function RssBanner({ onOpenSettings }: RssBannerProps) {
   const [articles, setArticles] = useState<RssArticle[]>([]);
-  const [offset, setOffset] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
-  /**
-   * Charge les articles non lus depuis l'API.
-   */
   const loadArticles = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetch('/api/rss/articles');
+      const res = await fetch('/api/rss/articles?limit=50');
       if (!res.ok) return;
-      const data = await res.json() as RssArticle[];
-      setArticles(data);
-      // Réajuste l'offset si on a moins d'articles qu'avant
-      setOffset((prev) => Math.min(prev, Math.max(0, data.length - 3)));
-    } catch {
-      // Erreur silencieuse — le bandeau reste vide
-    }
+      setArticles(await res.json() as RssArticle[]);
+    } catch { /* silencieux */ }
   }, []);
 
   useEffect(() => {
     loadArticles();
-    // Rafraîchissement automatique toutes les 5 minutes
     const interval = setInterval(loadArticles, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [loadArticles]);
 
-  // Défilement automatique toutes les 5 secondes
-  useEffect(() => {
-    if (articles.length <= 3) return;
-    const timer = setInterval(() => {
-      setOffset((o) => {
-        const next = o + 3;
-        // Revient au début une fois la fin atteinte
-        return next >= articles.length ? 0 : next;
-      });
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [articles.length]);
-
   /**
-   * Marque un article comme lu : le supprime via l'API et le retire de l'état local.
-   * Ouvre le lien dans un nouvel onglet.
-   * @param article - Article cliqué
+   * Marque un article comme lu et l'ouvre dans un nouvel onglet.
    */
   async function handleArticleClick(article: RssArticle): Promise<void> {
-    // Ouvre le lien immédiatement sans attendre la réponse API
     window.open(article.url, '_blank', 'noopener,noreferrer');
-
-    // Supprime localement pour un retour immédiat
-    setArticles((prev) => {
-      const updated = prev.filter((a) => a.id !== article.id);
-      // Ajuste l'offset si nécessaire
-      setOffset((o) => Math.min(o, Math.max(0, updated.length - 3)));
-      return updated;
-    });
-
-    // Suppression en base (fire and forget)
-    try {
-      await fetch(`/api/rss/articles/${article.id}`, { method: 'DELETE' });
-    } catch {
-      // Erreur silencieuse
-    }
+    setArticles((prev) => prev.filter((a) => a.id !== article.id));
+    try { await fetch(`/api/rss/articles/${article.id}`, { method: 'DELETE' }); }
+    catch { /* silencieux */ }
   }
 
-  /**
-   * Déclenche un rafraîchissement manuel des flux RSS.
-   */
   async function handleRefresh(): Promise<void> {
     if (isRefreshing) return;
     setIsRefreshing(true);
     try {
       await fetch('/api/rss/refresh', { method: 'POST' });
       await loadArticles();
-    } catch {
-      // Erreur silencieuse
-    } finally {
-      setIsRefreshing(false);
-    }
+    } catch { /* silencieux */ }
+    finally { setIsRefreshing(false); }
   }
 
-  // Si aucun flux/article, affiche un bandeau minimal avec accès aux paramètres
+  // Bandeau vide
   if (articles.length === 0) {
     return (
       <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-1.5 flex items-center justify-between gap-4">
         <span className="text-xs text-gray-400 dark:text-gray-600 italic">
           Aucun article RSS — ajoutez des flux via les paramètres
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors"
-            title="Rafraîchir les flux"
-          >
+        <div className="flex items-center gap-3">
+          <button onClick={handleRefresh} disabled={isRefreshing} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors" title="Rafraîchir">
             {isRefreshing ? '...' : '↻'}
           </button>
-          <Link
-            href="/rss"
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            title="Ouvrir le lecteur RSS"
-          >
-            ⊞
-          </Link>
-          <button
-            onClick={onOpenSettings}
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            title="Gérer les flux RSS"
-          >
-            ⚙ Flux RSS
-          </button>
+          <Link href="/rss" className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="Lecteur RSS">⊞</Link>
+          <button onClick={onOpenSettings} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="Gérer les flux">⚙ Flux RSS</button>
         </div>
       </div>
     );
   }
 
-  /** Articles visibles dans la fenêtre courante (3 à la fois) */
-  const visible = articles.slice(offset, offset + 3);
-  const canPrev = offset > 0;
-  const canNext = offset + 3 < articles.length;
+  const visibleHeight = VISIBLE_COUNT * ITEM_HEIGHT;
+  // 3 secondes par article pour une vitesse de lecture confortable
+  const duration = articles.length * 3;
+  // Défilement uniquement s'il y a plus d'articles que de lignes visibles
+  const shouldScroll = articles.length > VISIBLE_COUNT;
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-2 flex gap-3">
+    <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 flex gap-3 items-center">
 
-      {/* Liste des 3 articles empilés verticalement, séparés par des traits horizontaux */}
-      <div className="flex-1 min-w-0 divide-y divide-gray-200 dark:divide-gray-700">
-        {visible.map((article) => (
-          <button
-            key={article.id}
-            onClick={() => handleArticleClick(article)}
-            className="w-full text-left group py-1.5 first:pt-0 last:pb-0 flex items-baseline gap-2 min-w-0"
-            title={article.title}
-          >
-            <span className="text-xs text-blue-500 dark:text-blue-400 font-semibold flex-shrink-0">
-              {article.feed_name}
-            </span>
-            {article.published_at && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-                {formatDate(article.published_at)}
-              </span>
-            )}
-            <span className="text-xs text-gray-700 dark:text-gray-300 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {article.title}
-            </span>
-          </button>
-        ))}
+      {/* Keyframes de l'animation de défilement */}
+      <style>{`
+        @keyframes rss-marquee {
+          0%   { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+      `}</style>
 
-        {/* Remplissage silencieux si moins de 3 articles */}
-        {visible.length < 3 && Array.from({ length: 3 - visible.length }).map((_, i) => (
-          <div key={`empty-${i}`} className="py-1.5 last:pb-0" />
-        ))}
-      </div>
-
-      {/* Contrôles navigation + actions — colonne droite */}
-      <div className="flex flex-col items-center justify-between flex-shrink-0 border-l border-gray-200 dark:border-gray-700 pl-3">
-        <button
-          onClick={() => setOffset((o) => Math.max(0, o - 3))}
-          disabled={!canPrev}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 text-xs transition-colors"
-          aria-label="Articles précédents"
+      {/* Zone de défilement */}
+      <div
+        className="flex-1 min-w-0 overflow-hidden"
+        style={{ height: visibleHeight }}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        {/* Liste doublée pour un loop sans saut visible */}
+        <div
+          style={shouldScroll ? {
+            animation: `rss-marquee ${duration}s linear infinite`,
+            animationPlayState: isPaused ? 'paused' : 'running',
+          } : undefined}
         >
-          ▲
-        </button>
-
-        <span className="text-xs text-gray-400 tabular-nums leading-none">
-          {offset + 1}-{Math.min(offset + 3, articles.length)}/{articles.length}
-        </span>
-
-        <button
-          onClick={() => setOffset((o) => Math.min(articles.length - 1, o + 3))}
-          disabled={!canNext}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 text-xs transition-colors"
-          aria-label="Articles suivants"
-        >
-          ▼
-        </button>
-
-        <div className="flex gap-2 mt-1">
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors"
-            title="Rafraîchir les flux"
-          >
-            {isRefreshing ? '...' : '↻'}
-          </button>
-          <Link
-            href="/rss"
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            title="Ouvrir le lecteur RSS"
-          >
-            ⊞
-          </Link>
-          <button
-            onClick={onOpenSettings}
-            className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            title="Gérer les flux RSS"
-          >
-            ⚙
-          </button>
+          {/* Première passe */}
+          {articles.map((article) => (
+            <ArticleItem
+              key={`a-${article.id}`}
+              article={article}
+              height={ITEM_HEIGHT}
+              onClick={() => handleArticleClick(article)}
+            />
+          ))}
+          {/* Seconde passe — identique pour le loop continu */}
+          {shouldScroll && articles.map((article) => (
+            <ArticleItem
+              key={`b-${article.id}`}
+              article={article}
+              height={ITEM_HEIGHT}
+              onClick={() => handleArticleClick(article)}
+            />
+          ))}
         </div>
       </div>
+
+      {/* Contrôles — colonne droite */}
+      <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 pl-3 self-stretch py-1.5">
+        <span className="text-xs text-gray-400 tabular-nums">{articles.length}</span>
+        <button onClick={handleRefresh} disabled={isRefreshing} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors" title="Rafraîchir">
+          {isRefreshing ? '...' : '↻'}
+        </button>
+        <Link href="/rss" className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="Lecteur RSS">⊞</Link>
+        <button onClick={onOpenSettings} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="Gérer les flux">⚙</button>
+      </div>
     </div>
+  );
+}
+
+/** Props d'une ligne article */
+interface ArticleItemProps {
+  article: RssArticle;
+  height: number;
+  onClick: () => void;
+}
+
+/**
+ * Ligne d'article dans le bandeau défilant.
+ * Hauteur fixe pour garantir la fluidité de l'animation.
+ */
+function ArticleItem({ article, height, onClick }: ArticleItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left group flex items-center gap-2 min-w-0 px-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+      style={{ height }}
+      title={article.title}
+    >
+      <span className="text-xs font-semibold text-blue-500 dark:text-blue-400 flex-shrink-0 leading-none">
+        {article.feed_name}
+      </span>
+      {article.published_at && (
+        <span className="text-xs text-gray-400 dark:text-gray-600 flex-shrink-0 leading-none">
+          {formatDate(article.published_at)}
+        </span>
+      )}
+      <span className="text-xs text-gray-700 dark:text-gray-300 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-none">
+        {article.title}
+      </span>
+    </button>
   );
 }
