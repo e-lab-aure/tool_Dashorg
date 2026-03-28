@@ -194,7 +194,7 @@ export default function RssPage() {
       </div>
 
       {/* Liste d'articles */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-5xl mx-auto px-6 py-8">
         {articles.length === 0 && !isLoading && (
           <div className="text-center py-20 text-gray-400 dark:text-gray-600">
             <p className="text-4xl mb-3">📰</p>
@@ -382,11 +382,11 @@ function ArticleRow({ article, onClick }: ArticleRowProps) {
   return (
     <button
       onClick={onClick}
-      className="group w-full text-left py-5 flex gap-5 hover:bg-white dark:hover:bg-gray-900 transition-colors rounded-xl px-3 -mx-3"
+      className="group w-full text-left py-6 flex gap-6 hover:bg-white dark:hover:bg-gray-900 transition-colors rounded-xl px-4 -mx-4"
     >
       {/* Image à gauche */}
       {article.image_url && !imgError ? (
-        <div className="flex-shrink-0 w-36 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+        <div className="flex-shrink-0 w-52 h-36 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={article.image_url}
@@ -396,34 +396,34 @@ function ArticleRow({ article, onClick }: ArticleRowProps) {
           />
         </div>
       ) : (
-        <div className="flex-shrink-0 w-36 h-24 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center">
-          <span className="text-2xl opacity-30">📰</span>
+        <div className="flex-shrink-0 w-52 h-36 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center">
+          <span className="text-4xl opacity-20">📰</span>
         </div>
       )}
 
       {/* Contenu */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+      <div className="flex-1 min-w-0 flex flex-col gap-2">
         {/* Source + date */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
             {article.feed_name}
           </span>
-          <span className="text-xs text-gray-400 dark:text-gray-500">
+          <span className="text-sm text-gray-400 dark:text-gray-500">
             {formatDateRelative(article.published_at ?? article.created_at)}
           </span>
-          <span className="ml-auto text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+          <span className="ml-auto text-sm text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
             Lire →
           </span>
         </div>
 
         {/* Titre */}
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {article.title}
         </h2>
 
         {/* Description — sans limite de lignes pour maximiser la lecture */}
         {article.description && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+          <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
             {article.description}
           </p>
         )}
