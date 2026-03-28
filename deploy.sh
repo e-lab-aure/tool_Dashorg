@@ -9,6 +9,7 @@ REPO_DIR="/opt/tool_Dashorg"
 CONTAINER_NAME="tool_dashorg"
 IMAGE_NAME="tool_dashorg:latest"
 DATA_DIR="$REPO_DIR/data"
+UPLOADS_DIR="$REPO_DIR/uploads"
 ENV_FILE="$REPO_DIR/.env"
 
 log()   { echo "[INFO]  $(date '+%Y-%m-%d %H:%M:%S') - $1"; }
@@ -39,13 +40,15 @@ log "Build de l'image Podman..."
 podman build -f Containerfile -t "$IMAGE_NAME" .
 
 # --- Demarrage du nouveau conteneur ---
-# Le volume data assure la persistence de la base SQLite entre les deployments.
+# Les volumes data et uploads assurent la persistence entre les deployments.
 mkdir -p "$DATA_DIR"
+mkdir -p "$UPLOADS_DIR"
 log "Demarrage du conteneur..."
 podman run -d \
   --name "$CONTAINER_NAME" \
   -p 3000:3000 \
   -v "$DATA_DIR:/app/data" \
+  -v "$UPLOADS_DIR:/app/uploads" \
   --env-file "$ENV_FILE" \
   "$IMAGE_NAME"
 

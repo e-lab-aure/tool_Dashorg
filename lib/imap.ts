@@ -491,7 +491,11 @@ export async function pollImap(): Promise<ImapSyncResult> {
             const images = extractImagesFromMime(rawSource);
             if (images.length > 0) {
               const savedCount = saveImagesToTask(images, taskId);
-              logger.info('imap', `${savedCount} image(s) sauvegardée(s) pour tâche id=${taskId}`);
+              logger.info('imap', `${savedCount}/${images.length} image(s) sauvegardée(s) pour tâche id=${taskId}`);
+            } else {
+              // Log explicite pour diagnostiquer si l'email contient des images non détectées
+              const isMultipart = /Content-Type:\s*multipart\//i.test(rawSource);
+              logger.info('imap', `Aucune image détectée dans le mail pour tâche id=${taskId} (multipart=${isMultipart})`);
             }
 
             created++;
