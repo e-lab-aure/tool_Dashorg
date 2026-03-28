@@ -5,7 +5,7 @@
  * @description Panneau de gestion des listes personnelles.
  * Affiche un onglet par catégorie (dynamiques, chargées depuis la DB) avec :
  * - création de nouvelles listes avec tag IMAP personnalisé
- * - ajout inline d'items, édition inline par double-clic
+ * - ajout inline d'items, édition inline au clic sur le titre
  * - gestion des statuts fait/non-fait avec choix suppression ou archivage
  * - section archives repliable par catégorie
  * - popup ℹ avec recherche temps réel listant toutes les listes et leurs tags
@@ -856,7 +856,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
               {item.done ? '✓' : ''}
             </button>
 
-            {/* Contenu de l'item — édition inline sur double-clic */}
+            {/* Contenu de l'item — édition inline au clic sur le titre */}
             <div className="flex-1 min-w-0">
               {editingId === item.id ? (
                 <div className="space-y-1">
@@ -891,17 +891,15 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
                   </p>
                 </div>
               ) : (
-                <div
-                  onDoubleClick={() => handleStartEdit(item)}
-                  className={item.done ? '' : 'cursor-pointer select-none'}
-                  title={item.done ? undefined : 'Double-cliquer pour modifier'}
-                >
+                <div>
                   <p
+                    onClick={() => handleStartEdit(item)}
                     className={`text-sm font-medium ${
                       item.done
                         ? 'line-through text-gray-400 dark:text-gray-500'
-                        : 'text-gray-900 dark:text-white'
+                        : 'text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
                     }`}
+                    title={item.done ? undefined : 'Cliquer pour modifier'}
                   >
                     {item.title}
                   </p>
