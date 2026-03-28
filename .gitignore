@@ -5,9 +5,9 @@ node_modules/
 .next/
 out/
 
-# Données locales et uploads
+# Données locales et uploads (chemin ancre a la racine pour ne pas ignorer app/api/uploads/)
 data/
-uploads/
+/uploads/
 
 # Variables d'environnement — ne jamais committer
 .env
