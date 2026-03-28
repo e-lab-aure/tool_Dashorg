@@ -150,34 +150,32 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
         ◀
       </button>
 
-      {/* Articles (3 visibles) */}
-      <div className="flex-1 grid grid-cols-3 gap-3 min-w-0">
+      {/* Articles (3 visibles) — affichage inline séparé par des traits verticaux */}
+      <div className="flex-1 flex items-center min-w-0 divide-x divide-gray-200 dark:divide-gray-700">
         {visible.map((article) => (
           <button
             key={article.id}
             onClick={() => handleArticleClick(article)}
-            className="text-left group min-w-0"
+            className="flex-1 text-left group min-w-0 px-3 first:pl-0 flex items-baseline gap-1.5 truncate"
             title={article.title}
           >
-            <div className="flex items-baseline gap-1.5 min-w-0">
-              <span className="text-xs text-blue-500 dark:text-blue-400 font-medium flex-shrink-0">
-                {article.feed_name}
+            <span className="text-xs text-blue-500 dark:text-blue-400 font-medium flex-shrink-0">
+              {article.feed_name}
+            </span>
+            {article.published_at && (
+              <span className="text-xs text-gray-400 dark:text-gray-600 flex-shrink-0">
+                {formatDate(article.published_at)}
               </span>
-              {article.published_at && (
-                <span className="text-xs text-gray-400 dark:text-gray-600 flex-shrink-0">
-                  {formatDate(article.published_at)}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-gray-700 dark:text-gray-300 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+            )}
+            <span className="text-xs text-gray-700 dark:text-gray-300 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {article.title}
-            </p>
+            </span>
           </button>
         ))}
 
         {/* Remplissage si moins de 3 articles */}
         {visible.length < 3 && Array.from({ length: 3 - visible.length }).map((_, i) => (
-          <div key={`empty-${i}`} />
+          <div key={`empty-${i}`} className="flex-1 px-3" />
         ))}
       </div>
 
