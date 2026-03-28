@@ -151,84 +151,94 @@ interface ExtractedImage {
 }
 
 /**
+ * Explore recursivement un segment MIME et extrait toutes les images qu'il contient.
+ * Gere les structures imbriquees (ex : multipart/mixed > multipart/related > image/png),
+ * ce que les parseurs non-recursifs ratent lorsque l'image est dans un conteneur nested.
+ * @param segment - Segment MIME brut (message complet ou sous-partie)
+ * @returns Tableau des images extraites depuis ce segment
+ */
+function extraireImagesDeSegment(segment: string): ExtractedImage[] {
+  const images: ExtractedImage[] = [];
+
+  // Separation en-tetes / corps a la premiere ligne vide du segment
+  const split = segment.match(/^([\s\S]*?)\r?\n\r?\n([\s\S]*)$/);
+  if (!split) return images;
+
+  const headers = split[1];
+  const corps = split[2];
+
+  // Si ce segment est un conteneur multipart, explore recursivement ses sous-parties
+  const multipartMatch = headers.match(
+    /Content-Type:\s*multipart\/[^;\r\n]+;\s*(?:[^;\r\n]+;\s*)*boundary="?([^"\r\n]+)"?/i
+  );
+  if (multipartMatch) {
+    const boundary = multipartMatch[1].trim();
+    const escapedBoundary = boundary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sousParties = corps.split(new RegExp(`--${escapedBoundary}(?:--)?\\r?\\n?`));
+    for (const sousPart of sousParties) {
+      if (!sousPart || sousPart.trim() === '--') continue;
+      images.push(...extraireImagesDeSegment(sousPart));
+    }
+    return images;
+  }
+
+  // Verifie si ce segment contient directement une image
+  const contentTypeMatch = headers.match(/Content-Type:\s*(image\/[^\s;]+)/i);
+  if (!contentTypeMatch) return images;
+
+  const mimetype = contentTypeMatch[1].toLowerCase().trim();
+
+  // Nom du fichier depuis Content-Disposition ou Content-Type (en-tetes uniquement)
+  const dispositionFilenameMatch = headers.match(/Content-Disposition:[^\r\n]*filename="?([^"\r\n]+)"?/i);
+  const typeFilenameMatch = headers.match(/Content-Type:[^\r\n]*name="?([^"\r\n]+)"?/i);
+  const extension = mimetype.split('/')[1] ?? 'jpg';
+  const rawFilename =
+    dispositionFilenameMatch?.[1]?.trim() ??
+    typeFilenameMatch?.[1]?.trim() ??
+    `image_${Date.now()}.${extension}`;
+  const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+  // Encodage de transfert (base64 par defaut pour les images)
+  const encodingMatch = headers.match(/Content-Transfer-Encoding:\s*(\S+)/i);
+  const encoding = encodingMatch?.[1]?.toLowerCase() ?? 'base64';
+
+  const rawData = corps.trim();
+
+  try {
+    if (encoding === 'base64') {
+      // Supprime les sauts de ligne avant de decoder
+      const cleanData = rawData.replace(/\s/g, '');
+      const buffer = Buffer.from(cleanData, 'base64');
+      if (buffer.length > 0) {
+        images.push({ filename, data: buffer, mimetype });
+      }
+    } else if (encoding === 'quoted-printable') {
+      // Decode le quoted-printable : remplace les sequences =XX et les retours souples
+      const decoded = rawData
+        .replace(/=\r?\n/g, '')
+        .replace(/=([0-9A-Fa-f]{2})/g, (_, hex: string) =>
+          String.fromCharCode(parseInt(hex, 16))
+        );
+      const buffer = Buffer.from(decoded, 'binary');
+      if (buffer.length > 0) {
+        images.push({ filename, data: buffer, mimetype });
+      }
+    }
+  } catch (decodeError) {
+    logger.warning('imap', `Impossible de decoder l'image "${filename}" : ${(decodeError as Error).message}`);
+  }
+
+  return images;
+}
+
+/**
  * Extrait les images (pièces jointes et inline) depuis la source brute d'un email MIME.
- * Gère les encodages base64 et quoted-printable.
- * Retourne un tableau d'images avec leur contenu décodé.
+ * Délègue à extraireImagesDeSegment pour une exploration récursive des conteneurs multipart.
  * @param source - Source brute du message MIME
  * @returns Tableau des images extraites
  */
 function extractImagesFromMime(source: string): ExtractedImage[] {
-  const images: ExtractedImage[] = [];
-
-  // Recherche la boundary dans le Content-Type multipart de l'email
-  const boundaryMatch = source.match(
-    /Content-Type:\s*multipart\/[^;\r\n]+;\s*(?:[^;\r\n]+;\s*)*boundary="?([^"\r\n]+)"?/i
-  );
-  if (!boundaryMatch) return images;
-
-  const boundary = boundaryMatch[1].trim();
-  // Échappe les caractères spéciaux regex dans la boundary
-  const escapedBoundary = boundary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = source.split(new RegExp(`--${escapedBoundary}(?:--)?\\r?\\n?`));
-
-  for (const part of parts) {
-    // Filtre les parties vides ou qui sont le marqueur de fin
-    if (!part || part.trim() === '--') continue;
-
-    // Vérifie si la partie a un Content-Type image
-    const contentTypeMatch = part.match(/Content-Type:\s*(image\/[^\s;]+)/i);
-    if (!contentTypeMatch) continue;
-
-    const mimetype = contentTypeMatch[1].toLowerCase().trim();
-
-    // Détermine le nom du fichier depuis Content-Disposition ou Content-Type
-    const dispositionFilenameMatch = part.match(/Content-Disposition:[^\r\n]*filename="?([^"\r\n]+)"?/i);
-    const typeFilenameMatch = part.match(/Content-Type:[^\r\n]*name="?([^"\r\n]+)"?/i);
-    const extension = mimetype.split('/')[1] ?? 'jpg';
-    const rawFilename =
-      dispositionFilenameMatch?.[1]?.trim() ??
-      typeFilenameMatch?.[1]?.trim() ??
-      `image_${Date.now()}.${extension}`;
-
-    // Sécurise le nom de fichier
-    const filename = rawFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
-
-    // Détermine l'encodage de transfert (base64 par défaut pour les images)
-    const encodingMatch = part.match(/Content-Transfer-Encoding:\s*(\S+)/i);
-    const encoding = encodingMatch?.[1]?.toLowerCase() ?? 'base64';
-
-    // Extrait les données après la ligne vide séparant les en-têtes du corps
-    const bodyMatch = part.match(/\r?\n\r?\n([\s\S]+)/);
-    if (!bodyMatch) continue;
-
-    const rawData = bodyMatch[1].trim();
-
-    try {
-      if (encoding === 'base64') {
-        // Supprime les sauts de ligne avant de décoder
-        const cleanData = rawData.replace(/\s/g, '');
-        const buffer = Buffer.from(cleanData, 'base64');
-        if (buffer.length > 0) {
-          images.push({ filename, data: buffer, mimetype });
-        }
-      } else if (encoding === 'quoted-printable') {
-        // Décode le quoted-printable : remplace les séquences =XX et les retours souples
-        const decoded = rawData
-          .replace(/=\r?\n/g, '')
-          .replace(/=([0-9A-Fa-f]{2})/g, (_, hex: string) =>
-            String.fromCharCode(parseInt(hex, 16))
-          );
-        const buffer = Buffer.from(decoded, 'binary');
-        if (buffer.length > 0) {
-          images.push({ filename, data: buffer, mimetype });
-        }
-      }
-    } catch (decodeError) {
-      logger.warning('imap', `Impossible de décoder l'image "${filename}" : ${(decodeError as Error).message}`);
-    }
-  }
-
-  return images;
+  return extraireImagesDeSegment(source);
 }
 
 /**
