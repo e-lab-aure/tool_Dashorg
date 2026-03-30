@@ -34,7 +34,7 @@ function archiverTachesDoneEnRetard(): number {
     .run();
 
   if (result.changes > 0) {
-    logger.info('cron', `Archivage rattrapage — ${result.changes} tâche(s) done du jour précédent archivée(s)`);
+    logger.info('cron', `Archivage rattrapage - ${result.changes} tache(s) done du jour precedent archivee(s)`);
   }
 
   return result.changes;
@@ -55,7 +55,7 @@ function executeRollover(): void {
 
   // Transaction atomique pour garantir la cohérence des données
   const rolloverTransaction = db.transaction(() => {
-    // Étape 1a : rattrapage — tâches done d'un jour précédent sur n'importe quel board
+    // Étape 1a : rattrapage  -  tâches done d'un jour précédent sur n'importe quel board
     archiverTachesDoneEnRetard();
 
     // Étape 1b : les tâches terminées du jour partent en archive (chemin normal)
@@ -67,7 +67,7 @@ function executeRollover(): void {
       )
       .run().changes;
 
-    logger.info('cron', `Rollover — ${archivedCount} tâche(s) terminée(s) archivée(s)`);
+    logger.info('cron', `Rollover - ${archivedCount} tache(s) terminee(s) archivee(s)`);
 
     // Étape 2 : les tâches non terminées d'aujourd'hui deviennent des slots verrouillés de demain
     const movedCount = db
@@ -79,7 +79,7 @@ function executeRollover(): void {
       )
       .run().changes;
 
-    logger.info('cron', `Rollover — ${movedCount} tâche(s) reportée(s) de today vers tomorrow`);
+    logger.info('cron', `Rollover - ${movedCount} tache(s) reportee(s) de today vers tomorrow`);
 
     // Étape 3 : les tâches waiting restent dans leur board (waiting)
     // Elles ne participent pas au rollover
@@ -93,7 +93,7 @@ function executeRollover(): void {
       )
       .run().changes;
 
-    logger.info('cron', `Rollover — ${promotedCount} tâche(s) promue(s) de tomorrow vers today`);
+    logger.info('cron', `Rollover - ${promotedCount} tache(s) promue(s) de tomorrow vers today`);
 
     // Étape 5 : réinitialisation des positions de 1 à N pour le board today
     const todayTasks = db
@@ -104,7 +104,7 @@ function executeRollover(): void {
       db.prepare('UPDATE tasks SET position = ? WHERE id = ?').run(index + 1, task.id);
     });
 
-    logger.info('cron', `Rollover — Positions recalculées pour ${todayTasks.length} tâche(s)`);
+    logger.info('cron', `Rollover - Positions recalculees pour ${todayTasks.length} tache(s)`);
   });
 
   try {
@@ -137,7 +137,7 @@ async function executeRssRefresh(): Promise<void> {
   logger.info('cron', 'Démarrage du rafraîchissement RSS');
   try {
     const count = await refreshAllFeeds();
-    logger.info('cron', `Rafraîchissement RSS terminé — ${count} nouvel(s) article(s) importé(s)`);
+    logger.info('cron', `Rafraîchissement RSS terminé  -  ${count} nouvel(s) article(s) importé(s)`);
   } catch (error) {
     logger.error('cron', `Échec du rafraîchissement RSS : ${(error as Error).message}`);
   }
@@ -153,7 +153,7 @@ function initCron(): void {
 
   // Guard pour éviter la double initialisation en mode dev (hot-reload)
   if (globalObj['__cronInitialized']) {
-    logger.debug('cron', 'Cron déjà initialisé — initialisation ignorée');
+    logger.debug('cron', 'Cron déjà initialisé  -  initialisation ignorée');
     return;
   }
 
@@ -161,7 +161,7 @@ function initCron(): void {
   // (si le serveur était arrêté lors du rollover de 6h00)
   const rattrapageCount = archiverTachesDoneEnRetard();
   if (rattrapageCount > 0) {
-    logger.info('cron', `Démarrage — ${rattrapageCount} tâche(s) done en retard archivée(s)`);
+    logger.info('cron', `Demarrage - ${rattrapageCount} tache(s) done en retard archivee(s)`);
   }
 
   // Rafraîchissement RSS au démarrage pour peupler les flux dès le lancement

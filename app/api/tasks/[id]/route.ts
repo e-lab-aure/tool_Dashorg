@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/config';
 import type { Task } from '@/lib/types';
 
 /** Champs modifiables d'une tâche via PATCH */
@@ -70,9 +71,26 @@ export async function PATCH(
 
     for (const field of allowedFields) {
       if (field in body) {
-        // Validation du titre : ne peut pas être vide
-        if (field === 'title' && (typeof body.title !== 'string' || body.title.trim() === '')) {
-          return NextResponse.json({ error: 'Le titre ne peut pas être vide' }, { status: 400 });
+        // Validation du titre : non vide et longueur raisonnable
+        if (field === 'title') {
+          if (typeof body.title !== 'string' || body.title.trim() === '') {
+            return NextResponse.json({ error: 'Le titre ne peut pas etre vide' }, { status: 400 });
+          }
+          if (body.title.trim().length > TITLE_MAX_LENGTH) {
+            return NextResponse.json(
+              { error: `Le titre ne peut pas depasser ${TITLE_MAX_LENGTH} caracteres` },
+              { status: 400 }
+            );
+          }
+        }
+        // Validation de la description
+        if (field === 'description' && body.description && typeof body.description === 'string') {
+          if (body.description.length > DESCRIPTION_MAX_LENGTH) {
+            return NextResponse.json(
+              { error: `La description ne peut pas depasser ${DESCRIPTION_MAX_LENGTH} caracteres` },
+              { status: 400 }
+            );
+          }
         }
         updates.push(`${field} = @${field}`);
         values[field] = field === 'title' ? (body.title as string).trim() : (body as Record<string, unknown>)[field];
@@ -118,7 +136,7 @@ export async function PATCH(
       if (slotToDelete) {
         db.prepare(`DELETE FROM tasks WHERE id = ?`).run(slotToDelete.id);
         deletedTomorrowSlotId = slotToDelete.id;
-        logger.info('api/tasks', `PATCH — Slot locked tomorrow supprimé (waiting) : linked_task_id=${id}, slot_id=${slotToDelete.id}`);
+        logger.info('api/tasks', `PATCH  -  Slot locked tomorrow supprimé (waiting) : linked_task_id=${id}, slot_id=${slotToDelete.id}`);
       }
     }
     // Règle C : la tâche est marquée done ET reste dans today → supprime le slot locked tomorrow lié
@@ -130,7 +148,7 @@ export async function PATCH(
       if (slotToDelete) {
         db.prepare(`DELETE FROM tasks WHERE id = ?`).run(slotToDelete.id);
         deletedTomorrowSlotId = slotToDelete.id;
-        logger.info('api/tasks', `PATCH — Slot locked tomorrow supprimé (done) : linked_task_id=${id}, slot_id=${slotToDelete.id}`);
+        logger.info('api/tasks', `PATCH  -  Slot locked tomorrow supprimé (done) : linked_task_id=${id}, slot_id=${slotToDelete.id}`);
       }
     }
     // Règle D : la tâche vient d'être injectée dans today depuis un autre board (ex: waiting)
@@ -148,10 +166,10 @@ export async function PATCH(
       tomorrowSlot = creerSlotLockedTomorrow(id, updatedTask.title);
     }
 
-    logger.info('api/tasks', `PATCH — Tâche mise à jour : id=${id}`);
+    logger.info('api/tasks', `PATCH  -  Tâche mise à jour : id=${id}`);
     return NextResponse.json({ task: updatedTask, tomorrowSlot, deletedTomorrowSlotId });
   } catch (error) {
-    logger.error('api/tasks', `PATCH — Erreur : ${(error as Error).message}`);
+    logger.error('api/tasks', `PATCH  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la mise à jour de la tâche' }, { status: 500 });
   }
 }
@@ -180,7 +198,7 @@ function creerSlotLockedTomorrow(linkedTaskId: number, title: string): Task | nu
     .get() as { total: number }).total;
 
   if (count >= 5) {
-    logger.info('api/tasks', `creerSlotLockedTomorrow — Capacité tomorrow atteinte, slot non créé pour linked_task_id=${linkedTaskId}`);
+    logger.info('api/tasks', `creerSlotLockedTomorrow  -  Capacité tomorrow atteinte, slot non créé pour linked_task_id=${linkedTaskId}`);
     return null;
   }
 
@@ -195,7 +213,7 @@ function creerSlotLockedTomorrow(linkedTaskId: number, title: string): Task | nu
   `).run({ title, position: maxPos + 1, linkedTaskId });
 
   const slot = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid) as Task;
-  logger.info('api/tasks', `creerSlotLockedTomorrow — Slot créé : id=${slot.id}, linked_task_id=${linkedTaskId}`);
+  logger.info('api/tasks', `creerSlotLockedTomorrow  -  Slot créé : id=${slot.id}, linked_task_id=${linkedTaskId}`);
   return slot;
 }
 
@@ -222,10 +240,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Tâche introuvable' }, { status: 404 });
     }
 
-    logger.info('api/tasks', `DELETE — Tâche supprimée : id=${id}`);
+    logger.info('api/tasks', `DELETE  -  Tâche supprimée : id=${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/tasks', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/tasks', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression de la tâche' }, { status: 500 });
   }
 }

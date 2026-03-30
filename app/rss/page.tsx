@@ -172,7 +172,7 @@ export default function RssPage() {
         </button>
       </header>
 
-      {/* Panneau de gestion des flux — déplié sous le header */}
+      {/* Panneau de gestion des flux  -  déplié sous le header */}
       {showFeedManager && (
         <FeedManager
           feeds={feeds}
@@ -421,7 +421,7 @@ function ArticleRow({ article, onClick }: ArticleRowProps) {
           {article.title}
         </h2>
 
-        {/* Description — sans limite de lignes pour maximiser la lecture */}
+        {/* Description  -  sans limite de lignes pour maximiser la lecture */}
         {article.description && (
           <p className="text-base text-gray-600 dark:text-gray-400 leading-relaxed">
             {article.description}

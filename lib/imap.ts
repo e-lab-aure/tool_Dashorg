@@ -11,11 +11,12 @@ import fs from 'fs';
 import path from 'path';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { LISTS_UPLOADS_BASE, TASKS_UPLOADS_BASE } from '@/lib/config';
 
 /**
  * Actions possibles sur un email après traitement.
  * Configuré via la variable d'environnement IMAP_PROCESSED_ACTION.
- * - 'read'    : marque l'email comme lu (flag \Seen) — peut ne pas fonctionner sur certains serveurs
+ * - 'read'    : marque l'email comme lu (flag \Seen)  -  peut ne pas fonctionner sur certains serveurs
  * - 'delete'  : supprime définitivement l'email de la boîte
  * - 'archive' : déplace l'email dans le dossier défini par IMAP_ARCHIVE_FOLDER
  */
@@ -100,7 +101,7 @@ function extractMessageId(source: string): string | null {
  * Extrait le corps textuel d'un message IMAP.
  * Préfère le contenu texte brut de la partie text/plain.
  * Si la partie text/plain est trouvée mais vide (ex: mail avec seulement une pièce jointe),
- * retourne une chaîne vide sans tenter de repli — ce qui évite de capturer du contenu MIME brut.
+ * retourne une chaîne vide sans tenter de repli  -  ce qui évite de capturer du contenu MIME brut.
  * Le repli sur le contenu brut n'est tenté que pour les emails sans structure multipart.
  * @param source - Source brute du message
  * @returns Corps textuel du message, chaîne vide si aucun texte trouvé
@@ -131,17 +132,7 @@ function extractTextBody(source: string): string {
   return '';
 }
 
-/** Répertoire de stockage des images d'items de liste selon l'environnement */
-const LISTS_UPLOADS_BASE =
-  process.env.NODE_ENV === 'production'
-    ? '/app/uploads/lists'
-    : path.join(process.cwd(), 'uploads', 'lists');
-
-/** Répertoire de stockage des pièces jointes de tâches selon l'environnement */
-const TASKS_UPLOADS_BASE =
-  process.env.NODE_ENV === 'production'
-    ? '/app/uploads/tasks'
-    : path.join(process.cwd(), 'uploads', 'tasks');
+// Les chemins d'upload sont centralises dans lib/config.ts
 
 /** Représente une image extraite d'un email MIME */
 interface ExtractedImage {
@@ -377,11 +368,11 @@ export async function pollImap(): Promise<ImapSyncResult> {
   const archiveFolder = process.env.IMAP_ARCHIVE_FOLDER ?? 'Archive';
 
   if (!host || !user || !password) {
-    logger.warning('imap', 'Polling ignoré — variables IMAP_HOST, IMAP_USER ou IMAP_PASSWORD manquantes');
+    logger.warning('imap', 'Polling ignore - variables IMAP_HOST, IMAP_USER ou IMAP_PASSWORD manquantes');
     return { created: 0, ignored: 0 };
   }
 
-  // Lecture dynamique des catégories depuis la DB — supporte les listes personnalisées
+  // Lecture dynamique des catégories depuis la DB  -  supporte les listes personnalisées
   const categoryRows = db
     .prepare('SELECT tag, category FROM list_categories')
     .all() as { tag: string; category: string }[];
@@ -419,7 +410,7 @@ export async function pollImap(): Promise<ImapSyncResult> {
     let ignored = 0;
 
     try {
-      // Recherche les UIDs des messages non lus — uid:true garantit des UIDs stables
+      // Recherche les UIDs des messages non lus  -  uid:true garantit des UIDs stables
       // (les numéros de séquence peuvent changer lors d'une expunge par un autre client)
       const searchResult = await client.search({ seen: false }, { uid: true });
       const unseenUids = Array.isArray(searchResult) && searchResult.length > 0 ? searchResult : [];

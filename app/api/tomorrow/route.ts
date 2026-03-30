@@ -24,10 +24,10 @@ export async function GET(): Promise<NextResponse> {
       )
       .all() as Task[];
 
-    logger.info('api/tomorrow', `GET — ${tasks.length} slots récupérés`);
+    logger.info('api/tomorrow', `GET  -  ${tasks.length} slots récupérés`);
     return NextResponse.json(tasks);
   } catch (error) {
-    logger.error('api/tomorrow', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/tomorrow', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des slots' }, { status: 500 });
   }
 }
@@ -74,10 +74,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .prepare('SELECT * FROM tasks WHERE id = ?')
       .get(result.lastInsertRowid) as Task;
 
-    logger.info('api/tomorrow', `POST — Slot libre créé : id=${task.id}`);
+    logger.info('api/tomorrow', `POST  -  Slot libre créé : id=${task.id}`);
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
-    logger.error('api/tomorrow', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/tomorrow', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la création du slot' }, { status: 500 });
   }
 }

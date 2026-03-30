@@ -16,7 +16,7 @@ const appTitle = process.env.NEXT_PUBLIC_APP_TITLE ?? 'Dashorg';
 
 export const metadata: Metadata = {
   title: appTitle,
-  description: 'Dashboard personnel self-hosted — Dashorg',
+  description: 'Dashboard personnel self-hosted  -  Dashorg',
 };
 
 /** Props du layout racine */

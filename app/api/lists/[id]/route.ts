@@ -66,10 +66,10 @@ export async function PATCH(
 
     const item = db.prepare('SELECT * FROM list_items WHERE id = ?').get(id) as ListItem;
 
-    logger.info('api/lists', `PATCH — Item mis à jour : id=${id}`);
+    logger.info('api/lists', `PATCH  -  Item mis à jour : id=${id}`);
     return NextResponse.json(item);
   } catch (error) {
-    logger.error('api/lists', `PATCH — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists', `PATCH  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la mise à jour de l\'item' }, { status: 500 });
   }
 }
@@ -97,10 +97,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Item introuvable' }, { status: 404 });
     }
 
-    logger.info('api/lists', `DELETE — Item supprimé : id=${id}`);
+    logger.info('api/lists', `DELETE  -  Item supprimé : id=${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/lists', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression de l\'item' }, { status: 500 });
   }
 }

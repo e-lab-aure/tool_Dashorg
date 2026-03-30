@@ -8,15 +8,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { TASKS_UPLOADS_BASE, MAX_UPLOAD_SIZE_BYTES } from '@/lib/config';
 import fs from 'fs';
 import path from 'path';
 import type { Attachment } from '@/lib/types';
-
-/** Répertoire de stockage des uploads selon l'environnement */
-const UPLOADS_BASE =
-  process.env.NODE_ENV === 'production'
-    ? '/app/uploads/tasks'
-    : path.join(process.cwd(), 'uploads', 'tasks');
 
 /**
  * Retourne les pièces jointes associées à une tâche.
@@ -41,10 +36,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .prepare('SELECT * FROM attachments WHERE task_id = ? ORDER BY created_at ASC')
       .all(taskId) as Attachment[];
 
-    logger.info('api/uploads', `GET — ${attachments.length} pièces jointes pour task_id=${taskId}`);
+    logger.info('api/uploads', `GET - ${attachments.length} piece(s) jointe(s) pour task_id=${taskId}`);
     return NextResponse.json(attachments);
   } catch (error) {
-    logger.error('api/uploads', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/uploads', `GET - Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des pièces jointes' }, { status: 500 });
   }
 }
@@ -81,8 +76,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Sécurise le nom du fichier pour éviter les traversées de répertoire
+    // Validation de la taille du fichier
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: `Le fichier depasse la taille maximale autorisee (${Math.round(MAX_UPLOAD_SIZE_BYTES / 1024 / 1024)} Mo)` },
+        { status: 413 }
+      );
+    }
+
     const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const taskDir = path.join(UPLOADS_BASE, String(taskId));
+    const taskDir = path.join(TASKS_UPLOADS_BASE, String(taskId));
 
     // Crée le dossier de la tâche si nécessaire
     if (!fs.existsSync(taskDir)) {
@@ -117,10 +120,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .prepare('SELECT * FROM attachments WHERE id = ?')
       .get(result.lastInsertRowid) as Attachment;
 
-    logger.info('api/uploads', `POST — Fichier uploadé : "${safeFilename}" pour task_id=${taskId}`);
+    logger.info('api/uploads', `POST - Fichier uploade : "${safeFilename}" pour task_id=${taskId}`);
     return NextResponse.json(attachment, { status: 201 });
   } catch (error) {
-    logger.error('api/uploads', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/uploads', `POST - Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de l\'upload du fichier' }, { status: 500 });
   }
 }

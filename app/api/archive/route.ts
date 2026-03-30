@@ -1,9 +1,9 @@
 /**
  * @module api/archive
- * @description Routes API pour la gestion des tâches archivées.
- * Les tâches terminées sont archivées automatiquement lors du rollover de 6h00.
- * GET  : récupère les tâches archivées, triées par date d'archivage décroissante
- * POST : restaure une tâche archivée en file d'attente (board = 'waiting')
+ * @description Routes API pour la gestion des taches archivees.
+ * Les taches terminees sont archivees automatiquement lors du rollover de 6h00.
+ * GET  : recupere les taches archivees avec pagination (?limit=50&offset=0)
+ * POST : restaure une tache archivee en file d'attente (board = 'waiting')
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,32 +11,54 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import type { Task } from '@/lib/types';
 
+/** Nombre de taches archivees retournees par page par defaut */
+const DEFAULT_LIMIT = 50;
+
+/** Nombre maximum de taches archivees retournables en une seule requete */
+const MAX_LIMIT = 200;
+
 /**
- * Récupère toutes les tâches archivées, les plus récentes en premier.
- * @returns Liste des tâches archivées en JSON
+ * Recupere les taches archivees avec pagination, les plus recentes en premier.
+ * @param request - Requete avec query params optionnels ?limit=N&offset=N
+ * @returns Objet JSON avec la liste des taches et le total disponible
  */
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    const { searchParams } = new URL(request.url);
+
+    // Parsing et clamp des parametres de pagination
+    const limitParam = parseInt(searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10);
+    const offsetParam = parseInt(searchParams.get('offset') ?? '0', 10);
+
+    const limit = isNaN(limitParam) || limitParam < 1 ? DEFAULT_LIMIT : Math.min(limitParam, MAX_LIMIT);
+    const offset = isNaN(offsetParam) || offsetParam < 0 ? 0 : offsetParam;
+
+    // Compte total pour la pagination cote client
+    const { total } = db
+      .prepare(`SELECT COUNT(*) AS total FROM tasks WHERE board = 'archive'`)
+      .get() as { total: number };
+
     const tasks = db
       .prepare(
         `SELECT * FROM tasks
          WHERE board = 'archive'
-         ORDER BY archived_at DESC, id DESC`
+         ORDER BY archived_at DESC, id DESC
+         LIMIT ? OFFSET ?`
       )
-      .all() as Task[];
+      .all(limit, offset) as Task[];
 
-    logger.info('api/archive', `GET — ${tasks.length} tâche(s) archivée(s) récupérées`);
-    return NextResponse.json(tasks);
+    logger.info('api/archive', `GET - ${tasks.length}/${total} tache(s) archivee(s) (offset=${offset})`);
+    return NextResponse.json({ tasks, total, limit, offset });
   } catch (error) {
-    logger.error('api/archive', `GET — Erreur : ${(error as Error).message}`);
-    return NextResponse.json({ error: 'Erreur lors de la récupération des archives' }, { status: 500 });
+    logger.error('api/archive', `GET - Erreur : ${(error as Error).message}`);
+    return NextResponse.json({ error: 'Erreur lors de la recuperation des archives' }, { status: 500 });
   }
 }
 
 /**
- * Restaure une tâche archivée en la remettant dans la file d'attente.
- * @param request - Requête contenant { task_id: number }
- * @returns La tâche restaurée en JSON
+ * Restaure une tache archivee en la remettant dans la file d'attente.
+ * @param request - Requete contenant { task_id: number }
+ * @returns La tache restauree en JSON
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -51,10 +73,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .get(body.task_id);
 
     if (!existing) {
-      return NextResponse.json({ error: 'Tâche archivée introuvable' }, { status: 404 });
+      return NextResponse.json({ error: 'Tache archivee introuvable' }, { status: 404 });
     }
 
-    // Remet la tâche en file d'attente avec le statut "waiting"
+    // Remet la tache en file d'attente avec le statut "waiting"
     db.prepare(`
       UPDATE tasks
       SET board = 'waiting', status = 'waiting', archived_at = NULL, updated_at = CURRENT_TIMESTAMP
@@ -63,10 +85,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(body.task_id) as Task;
 
-    logger.info('api/archive', `POST — Tâche id=${body.task_id} restaurée en file d'attente`);
+    logger.info('api/archive', `POST - Tache id=${body.task_id} restauree en file d'attente`);
     return NextResponse.json(task);
   } catch (error) {
-    logger.error('api/archive', `POST — Erreur : ${(error as Error).message}`);
-    return NextResponse.json({ error: 'Erreur lors de la restauration de la tâche' }, { status: 500 });
+    logger.error('api/archive', `POST - Erreur : ${(error as Error).message}`);
+    return NextResponse.json({ error: 'Erreur lors de la restauration de la tache' }, { status: 500 });
   }
 }

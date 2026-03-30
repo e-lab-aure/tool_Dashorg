@@ -1,7 +1,7 @@
 /**
  * @module api/rss/articles/[id]
  * @description Route API pour marquer un article RSS comme lu (suppression).
- * DELETE : supprime l'article de la base — il disparaît du bandeau
+ * DELETE : supprime l'article de la base  -  il disparaît du bandeau
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -38,10 +38,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
     }
 
-    logger.info('api/rss/articles', `DELETE — Article lu et supprimé : id=${id}`);
+    logger.info('api/rss/articles', `DELETE  -  Article lu et supprimé : id=${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/rss/articles', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/rss/articles', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression de l\'article' }, { status: 500 });
   }
 }

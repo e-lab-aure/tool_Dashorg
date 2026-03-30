@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/config';
 import type { ListItem, ListItemImage } from '@/lib/types';
 
 /**
@@ -72,10 +73,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const enrichedItems = attachImagesToItems(items);
 
-    logger.info('api/lists', `GET — ${items.length} items récupérés (catégorie: ${category ?? 'toutes'})`);
+    logger.info('api/lists', `GET  -  ${items.length} items récupérés (catégorie: ${category ?? 'toutes'})`);
     return NextResponse.json(enrichedItems);
   } catch (error) {
-    logger.error('api/lists', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des items' }, { status: 500 });
   }
 }
@@ -103,6 +104,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Le titre est obligatoire' }, { status: 400 });
     }
 
+    if (body.title.trim().length > TITLE_MAX_LENGTH) {
+      return NextResponse.json(
+        { error: `Le titre ne peut pas depasser ${TITLE_MAX_LENGTH} caracteres` },
+        { status: 400 }
+      );
+    }
+
+    if (body.description && typeof body.description === 'string' && body.description.length > DESCRIPTION_MAX_LENGTH) {
+      return NextResponse.json(
+        { error: `La description ne peut pas depasser ${DESCRIPTION_MAX_LENGTH} caracteres` },
+        { status: 400 }
+      );
+    }
+
     const stmt = db.prepare(`
       INSERT INTO list_items (category, title, description, extra_data, source)
       VALUES (@category, @title, @description, @extra_data, 'manual')
@@ -119,10 +134,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .prepare('SELECT * FROM list_items WHERE id = ?')
       .get(result.lastInsertRowid) as ListItem;
 
-    logger.info('api/lists', `POST — Item créé : id=${item.id}, catégorie="${item.category}", titre="${item.title}"`);
+    logger.info('api/lists', `POST  -  Item créé : id=${item.id}, catégorie="${item.category}", titre="${item.title}"`);
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
-    logger.error('api/lists', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la création de l\'item' }, { status: 500 });
   }
 }

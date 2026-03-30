@@ -37,10 +37,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Flux introuvable' }, { status: 404 });
     }
 
-    logger.info('api/rss/feeds', `DELETE — Flux supprimé : id=${id}`);
+    logger.info('api/rss/feeds', `DELETE  -  Flux supprimé : id=${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/rss/feeds', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/rss/feeds', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression du flux' }, { status: 500 });
   }
 }

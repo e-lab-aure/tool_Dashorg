@@ -238,7 +238,7 @@ export default function TomorrowBoard({ tasks, onUpdate, onAdd, onDelete, onSele
                       setEditingTitles((prev) => ({ ...prev, [task.id]: task.title }))
                     }
                     className="flex-1 text-left text-sm text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors min-w-0"
-                    title="Cliquer pour voir le détail — double-cliquer pour modifier"
+                    title="Cliquer pour voir le détail  -  double-cliquer pour modifier"
                   >
                     {task.title}
                   </button>

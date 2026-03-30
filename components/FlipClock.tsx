@@ -110,7 +110,7 @@ function FlipDigit({ value }: FlipDigitProps) {
       }}
     >
       {/* ── Calques statiques ── */}
-      {/* Moitié haute — révèle la nouvelle valeur quand le volet tombe */}
+      {/* Moitié haute  -  révèle la nouvelle valeur quand le volet tombe */}
       <div
         style={{
           ...halfBase,
@@ -122,7 +122,7 @@ function FlipDigit({ value }: FlipDigitProps) {
         <div style={digitUpperStyle}>{staticTop}</div>
       </div>
 
-      {/* Moitié basse — montre l'ancienne valeur jusqu'à ce que le volet du bas se déplie */}
+      {/* Moitié basse  -  montre l'ancienne valeur jusqu'à ce que le volet du bas se déplie */}
       <div
         style={{
           ...halfBase,

@@ -74,7 +74,7 @@ export default function RssModal({ onClose }: RssModalProps) {
       setNameInput('');
       await loadFeeds();
     } catch {
-      setError('Erreur réseau — vérifiez votre connexion');
+      setError('Erreur réseau  -  vérifiez votre connexion');
     } finally {
       setIsAdding(false);
     }
@@ -137,7 +137,7 @@ export default function RssModal({ onClose }: RssModalProps) {
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-              placeholder="Nom du flux (facultatif — détecté automatiquement)"
+              placeholder="Nom du flux (facultatif  -  détecté automatiquement)"
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {error && (
@@ -188,7 +188,7 @@ export default function RssModal({ onClose }: RssModalProps) {
 
           {feeds.length === 0 && (
             <p className="text-sm text-gray-400 dark:text-gray-600 text-center py-4">
-              Aucun flux configuré — ajoutez votre premier flux ci-dessus.
+              Aucun flux configuré  -  ajoutez votre premier flux ci-dessus.
             </p>
           )}
         </div>

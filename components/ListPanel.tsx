@@ -73,7 +73,7 @@ function ImageThumbnails({ images, itemId }: ImageThumbnailsProps) {
         ))}
       </div>
 
-      {/* Popup lightbox — fond sombre cliquable pour fermer */}
+      {/* Popup lightbox  -  fond sombre cliquable pour fermer */}
       {openImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
@@ -543,7 +543,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">Mes listes</h2>
 
-        {/* Bouton ℹ — ouvre la popup de référence des tags par clic */}
+        {/* Bouton ℹ  -  ouvre la popup de référence des tags par clic */}
         <button
           onClick={() => setShowInfoPopup(true)}
           className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 text-xs font-bold flex items-center justify-center hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors"
@@ -554,7 +554,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
         </button>
       </div>
 
-      {/* Popup ℹ — liste toutes les catégories avec leur tag, recherche temps réel */}
+      {/* Popup ℹ  -  liste toutes les catégories avec leur tag, recherche temps réel */}
       {showInfoPopup && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -651,10 +651,10 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
                 className="flex items-center gap-1 px-2 py-1 rounded-t-md bg-blue-500"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Sélecteur d'emoji — le clic ne doit pas fermer l'édition */}
+                {/* Sélecteur d'emoji  -  le clic ne doit pas fermer l'édition */}
                 <EmojiPickerButton value={editCatIcon} onChange={setEditCatIcon} />
 
-                {/* Champ nom — pas de onBlur pour éviter la fermeture lors du clic sur le picker */}
+                {/* Champ nom  -  pas de onBlur pour éviter la fermeture lors du clic sur le picker */}
                 <input
                   type="text"
                   autoFocus
@@ -688,7 +688,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
             );
           }
 
-          // Mode affichage normal — double-clic pour éditer
+          // Mode affichage normal  -  double-clic pour éditer
           return (
             <button
               key={cat.category}
@@ -783,7 +783,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
             )}
           </div>
 
-          {/* Icône — sélecteur d'emoji */}
+          {/* Icône  -  sélecteur d'emoji */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 dark:text-gray-400">Icône :</span>
             <EmojiPickerButton value={newListIcon} onChange={setNewListIcon} />
@@ -856,7 +856,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
               {item.done ? '✓' : ''}
             </button>
 
-            {/* Contenu de l'item — édition inline au clic sur le titre */}
+            {/* Contenu de l'item  -  édition inline au clic sur le titre */}
             <div className="flex-1 min-w-0">
               {editingId === item.id ? (
                 <div className="space-y-1">

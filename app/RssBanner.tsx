@@ -82,7 +82,7 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
     return (
       <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-1.5 flex items-center justify-between gap-4">
         <span className="text-xs text-gray-400 dark:text-gray-600 italic">
-          Aucun article RSS — ajoutez des flux via les paramètres
+          Aucun article RSS  -  ajoutez des flux via les paramètres
         </span>
         <div className="flex items-center gap-3">
           <button onClick={handleRefresh} disabled={isRefreshing} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors" title="Rafraîchir">
@@ -104,7 +104,7 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
   return (
     <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 flex gap-3 items-center">
 
-      {/* Keyframes de l'animation de défilement — translate3d force l'acceleration GPU */}
+      {/* Keyframes de l'animation de défilement  -  translate3d force l'acceleration GPU */}
       <style>{`
         @keyframes rss-marquee {
           0%   { transform: translate3d(0, 0, 0); }
@@ -112,7 +112,7 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
         }
       `}</style>
 
-      {/* Zone de défilement — perspective cree un contexte 3D qui stabilise le rendu du texte */}
+      {/* Zone de défilement  -  perspective cree un contexte 3D qui stabilise le rendu du texte */}
       <div
         className="flex-1 min-w-0 overflow-hidden"
         style={{ height: visibleHeight, perspective: 1000 }}
@@ -138,7 +138,7 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
               onClick={() => handleArticleClick(article)}
             />
           ))}
-          {/* Seconde passe — identique pour le loop continu */}
+          {/* Seconde passe  -  identique pour le loop continu */}
           {shouldScroll && articles.map((article) => (
             <ArticleItem
               key={`b-${article.id}`}
@@ -150,7 +150,7 @@ export default function RssBanner({ onOpenSettings }: RssBannerProps) {
         </div>
       </div>
 
-      {/* Contrôles — colonne droite */}
+      {/* Contrôles  -  colonne droite */}
       <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 pl-3 self-stretch py-1.5">
         <span className="text-xs text-gray-400 tabular-nums">{articles.length}</span>
         <button onClick={handleRefresh} disabled={isRefreshing} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 transition-colors" title="Rafraîchir">

@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import data from '@emoji-mart/data';
 
-/** Chargement dynamique du picker (côté client uniquement — évite les erreurs SSR) */
+/** Chargement dynamique du picker (côté client uniquement  -  évite les erreurs SSR) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Picker = dynamic(() => import('@emoji-mart/react'), { ssr: false }) as React.ComponentType<any>;
 
@@ -74,7 +74,7 @@ export default function EmojiPickerButton({ value, onChange }: EmojiPickerButton
         {value}
       </button>
 
-      {/* Popover du picker — positionné en bas à gauche du bouton */}
+      {/* Popover du picker  -  positionné en bas à gauche du bouton */}
       {open && (
         <div className="absolute top-12 left-0 z-50 shadow-2xl rounded-xl overflow-hidden">
           <Picker

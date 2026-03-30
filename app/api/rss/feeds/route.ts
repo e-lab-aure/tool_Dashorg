@@ -29,10 +29,10 @@ export async function GET(): Promise<NextResponse> {
       ORDER BY f.created_at ASC
     `).all() as (RssFeed & { article_count: number })[];
 
-    logger.info('api/rss/feeds', `GET — ${feeds.length} flux retourné(s)`);
+    logger.info('api/rss/feeds', `GET  -  ${feeds.length} flux retourné(s)`);
     return NextResponse.json(feeds);
   } catch (error) {
-    logger.error('api/rss/feeds', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/rss/feeds', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des flux' }, { status: 500 });
   }
 }
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const result = db.prepare('INSERT INTO rss_feeds (url, name) VALUES (?, ?)').run(url, name);
     const feed = db.prepare('SELECT * FROM rss_feeds WHERE id = ?').get(result.lastInsertRowid) as RssFeed;
 
-    logger.info('api/rss/feeds', `POST — Flux ajouté : id=${feed.id} name="${feed.name}" url="${feed.url}"`);
+    logger.info('api/rss/feeds', `POST  -  Flux ajouté : id=${feed.id} name="${feed.name}" url="${feed.url}"`);
     return NextResponse.json(feed, { status: 201 });
   } catch (error) {
-    logger.error('api/rss/feeds', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/rss/feeds', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de l\'ajout du flux' }, { status: 500 });
   }
 }

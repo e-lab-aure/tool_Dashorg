@@ -4,7 +4,7 @@
  * @module page
  * @description Page principale du dashboard Dashorg.
  * Orchestre l'affichage des composants : TodayBoard, TomorrowBoard,
- * WaitingQueue, ArchivePanel et ListPanel. Gère l'état global et le basculement dark/light.
+ * WaitingQueue, ArchivePanel et ListPanel. Gere l'etat global et le basculement dark/light.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,17 +20,38 @@ import RssBanner from '@/app/RssBanner';
 import RssModal from '@/app/RssModal';
 import type { Task, ListItem } from '@/lib/types';
 
+/** Cle de stockage localStorage pour la preference de theme */
+const DARK_MODE_STORAGE_KEY = 'dashorg_dark_mode';
+
+/** Reponse paginee de l'API /api/archive */
+interface ArchiveResponse {
+  tasks: Task[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 /**
- * Page principale — charge les données initiales et coordonne les mises à jour d'état.
+ * Page principale - charge les donnees initiales et coordonne les mises a jour d'etat.
  */
 export default function HomePage() {
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [tomorrowTasks, setTomorrowTasks] = useState<Task[]>([]);
   const [waitingTasks, setWaitingTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
+  const [archiveTotal, setArchiveTotal] = useState(0);
+  const [archiveOffset, setArchiveOffset] = useState(0);
+  const [isLoadingMoreArchive, setIsLoadingMoreArchive] = useState(false);
   const [listItems, setListItems] = useState<ListItem[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isDark, setIsDark] = useState(false);
+
+  // Initialisation du mode sombre depuis localStorage pour eviter le flash au chargement
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const stored = localStorage.getItem(DARK_MODE_STORAGE_KEY);
+    return stored !== null ? stored === 'true' : false;
+  });
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -38,7 +59,7 @@ export default function HomePage() {
   const [isRssModalOpen, setIsRssModalOpen] = useState(false);
 
   /**
-   * Charge toutes les données depuis les APIs au montage du composant.
+   * Charge toutes les donnees depuis les APIs au montage du composant.
    */
   const loadData = useCallback(async (): Promise<void> => {
     try {
@@ -52,20 +73,22 @@ export default function HomePage() {
       ]);
 
       if (!tasksRes.ok || !tomorrowRes.ok || !listsRes.ok || !archiveRes.ok) {
-        throw new Error('Erreur lors du chargement des données');
+        throw new Error('Erreur lors du chargement des donnees');
       }
 
       const tasks = await tasksRes.json() as Task[];
       const tomorrow = await tomorrowRes.json() as Task[];
       const lists = await listsRes.json() as ListItem[];
-      const archived = await archiveRes.json() as Task[];
+      const archiveData = await archiveRes.json() as ArchiveResponse;
 
-      // Sépare les tâches today des tâches waiting
+      // Separe les taches today des taches waiting
       setTodayTasks(tasks.filter((t) => t.board === 'today'));
       setWaitingTasks(tasks.filter((t) => t.board === 'waiting'));
       setTomorrowTasks(tomorrow);
       setListItems(lists);
-      setArchivedTasks(archived);
+      setArchivedTasks(archiveData.tasks);
+      setArchiveTotal(archiveData.total);
+      setArchiveOffset(archiveData.tasks.length);
     } catch (error) {
       setLoadError((error as Error).message);
     } finally {
@@ -77,27 +100,31 @@ export default function HomePage() {
     loadData();
   }, [loadData]);
 
-  // Applique ou retire la classe "dark" sur l'élément HTML selon l'état du toggle
+  /**
+   * Applique ou retire la classe "dark" sur l'element HTML selon l'etat du toggle.
+   * Persiste le choix dans localStorage pour survivre aux rechargements de page.
+   */
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem(DARK_MODE_STORAGE_KEY, String(isDark));
   }, [isDark]);
 
   /**
-   * Met à jour une tâche dans l'état local après modification.
-   * La tâche est replacée dans le bon tableau selon son board.
-   * @param updatedTask - Tâche mise à jour reçue depuis l'API
+   * Met a jour une tache dans l'etat local apres modification.
+   * La tache est replacee dans le bon tableau selon son board.
+   * @param updatedTask - Tache mise a jour recue depuis l'API
    */
   function handleTaskUpdate(updatedTask: Task): void {
-    // Mise à jour dans le panneau de détail ouvert
+    // Mise a jour dans le panneau de detail ouvert
     if (selectedTask?.id === updatedTask.id) {
       setSelectedTask(updatedTask);
     }
 
-    // Déplace la tâche dans le bon tableau selon son board actuel
+    // Deplace la tache dans le bon tableau selon son board actuel
     setTodayTasks((prev) => {
       const withoutTask = prev.filter((t) => t.id !== updatedTask.id);
       return updatedTask.board === 'today'
@@ -122,7 +149,7 @@ export default function HomePage() {
 
   /**
    * Ajoute un slot libre dans le tableau de demain.
-   * @param newTask - Nouveau slot créé
+   * @param newTask - Nouveau slot cree
    */
   function handleTomorrowAdd(newTask: Task): void {
     setTomorrowTasks((prev) =>
@@ -132,17 +159,17 @@ export default function HomePage() {
 
   /**
    * Supprime un slot du tableau de demain.
-   * @param taskId - Identifiant du slot supprimé
+   * @param taskId - Identifiant du slot supprime
    */
   function handleTomorrowDelete(taskId: number): void {
     setTomorrowTasks((prev) => prev.filter((t) => t.id !== taskId));
   }
 
   /**
-   * Gère les changements sur les slots tomorrow déclenchés par TodayBoard.
-   * Crée ou supprime un slot locked dans l'état local de tomorrow.
-   * @param slot - Slot locked créé dans tomorrow, ou null si aucun
-   * @param deletedId - Identifiant du slot supprimé dans tomorrow, ou null si aucun
+   * Gere les changements sur les slots tomorrow declenches par TodayBoard.
+   * Cree ou supprime un slot locked dans l'etat local de tomorrow.
+   * @param slot - Slot locked cree dans tomorrow, ou null si aucun
+   * @param deletedId - Identifiant du slot supprime dans tomorrow, ou null si aucun
    */
   function handleTomorrowChange(slot: Task | null, deletedId: number | null): void {
     if (deletedId !== null) {
@@ -154,10 +181,9 @@ export default function HomePage() {
   }
 
   /**
-   * Gère l'injection d'une tâche en attente vers today ou tomorrow.
-   * Pour une injection vers today, un slot locked peut avoir été créé dans tomorrow.
-   * @param updatedTask - Tâche mise à jour après injection
-   * @param tomorrowSlot - Slot locked créé dans tomorrow lors d'une injection vers today, ou null
+   * Gere l'injection d'une tache en attente vers today ou tomorrow.
+   * @param updatedTask - Tache mise a jour apres injection
+   * @param tomorrowSlot - Slot locked cree dans tomorrow lors d'une injection vers today, ou null
    */
   function handleWaitingInject(updatedTask: Task, tomorrowSlot: Task | null): void {
     setWaitingTasks((prev) => prev.filter((t) => t.id !== updatedTask.id));
@@ -168,44 +194,67 @@ export default function HomePage() {
   }
 
   /**
-   * Archive une tâche depuis la file d'attente.
-   * La retire de waiting et l'ajoute en tête des archives.
-   * @param archivedTask - Tâche archivée retournée par l'API
+   * Archive une tache depuis la file d'attente.
+   * La retire de waiting et l'ajoute en tete des archives.
+   * @param archivedTask - Tache archivee retournee par l'API
    */
   function handleWaitingArchive(archivedTask: Task): void {
     setWaitingTasks((prev) => prev.filter((t) => t.id !== archivedTask.id));
     setArchivedTasks((prev) => [archivedTask, ...prev]);
+    setArchiveTotal((prev) => prev + 1);
+    setArchiveOffset((prev) => prev + 1);
   }
 
   /**
-   * Supprime définitivement une tâche depuis la file d'attente.
-   * @param taskId - Identifiant de la tâche supprimée
+   * Supprime definitivement une tache depuis la file d'attente.
+   * @param taskId - Identifiant de la tache supprimee
    */
   function handleWaitingDelete(taskId: number): void {
     setWaitingTasks((prev) => prev.filter((t) => t.id !== taskId));
   }
 
   /**
-   * Gère la restauration d'une tâche archivée en file d'attente.
-   * Retire la tâche des archives et l'ajoute dans waiting.
-   * @param restoredTask - Tâche restaurée retournée par l'API
+   * Gere la restauration d'une tache archivee en file d'attente.
+   * Retire la tache des archives et l'ajoute dans waiting.
+   * @param restoredTask - Tache restauree retournee par l'API
    */
   function handleArchiveRestore(restoredTask: Task): void {
     setArchivedTasks((prev) => prev.filter((t) => t.id !== restoredTask.id));
+    setArchiveTotal((prev) => Math.max(0, prev - 1));
+    setArchiveOffset((prev) => Math.max(0, prev - 1));
     setWaitingTasks((prev) => [restoredTask, ...prev]);
   }
 
   /**
-   * Ajoute un item de liste dans l'état local.
-   * @param newItem - Nouvel item créé
+   * Charge la prochaine page des taches archivees.
+   * Appele par ArchivePanel quand l'utilisateur clique sur "Voir plus".
+   */
+  const handleLoadMoreArchive = useCallback(async (): Promise<void> => {
+    if (isLoadingMoreArchive) return;
+    setIsLoadingMoreArchive(true);
+    try {
+      const res = await fetch(`/api/archive?limit=50&offset=${archiveOffset}`);
+      if (!res.ok) return;
+      const data = await res.json() as ArchiveResponse;
+      setArchivedTasks((prev) => [...prev, ...data.tasks]);
+      setArchiveTotal(data.total);
+      setArchiveOffset((prev) => prev + data.tasks.length);
+    } finally {
+      setIsLoadingMoreArchive(false);
+    }
+  }, [archiveOffset, isLoadingMoreArchive]);
+
+  /**
+   * Ajoute un item de liste dans l'etat local.
+   * @param newItem - Nouvel item cree
    */
   function handleListAdd(newItem: ListItem): void {
     setListItems((prev) => [newItem, ...prev]);
   }
 
   /**
-   * Met à jour un item de liste dans l'état local.
-   * @param updatedItem - Item mis à jour
+   * Met a jour un item de liste dans l'etat local.
+   * @param updatedItem - Item mis a jour
    */
   function handleListUpdate(updatedItem: ListItem): void {
     setListItems((prev) =>
@@ -214,17 +263,16 @@ export default function HomePage() {
   }
 
   /**
-   * Supprime un item de liste de l'état local.
-   * @param itemId - Identifiant de l'item supprimé
+   * Supprime un item de liste de l'etat local.
+   * @param itemId - Identifiant de l'item supprime
    */
   function handleListDelete(itemId: number): void {
     setListItems((prev) => prev.filter((item) => item.id !== itemId));
   }
 
   /**
-   * Met à jour l'état local après un réordonnancement d'items dans une catégorie.
-   * Remplace les items concernés par leurs versions avec les nouvelles positions.
-   * @param reorderedItems - Items réordonnés retournés par l'API avec les nouvelles positions
+   * Met a jour l'etat local apres un reordonnancement d'items dans une categorie.
+   * @param reorderedItems - Items reordonnes retournes par l'API avec les nouvelles positions
    */
   function handleListReorder(reorderedItems: ListItem[]): void {
     const updatedIds = new Set(reorderedItems.map((i) => i.id));
@@ -235,11 +283,14 @@ export default function HomePage() {
   }
 
   /**
-   * Recharge silencieusement les listes et les tâches en arrière-plan.
-   * Utilisé par le polling automatique pour détecter les nouveaux items créés par le cron IMAP.
-   * N'affiche aucun indicateur visuel pour ne pas perturber l'utilisateur.
+   * Recharge silencieusement les listes et les taches en arriere-plan.
+   * Utilise par le polling automatique pour detecter les nouveaux items crees par le cron IMAP.
+   * Ne s'execute pas si l'onglet est masque (document.hidden) pour economiser les ressources.
    */
   const silentRefresh = useCallback(async (): Promise<void> => {
+    // Ne pas interroger le serveur si l'utilisateur ne regarde pas l'onglet
+    if (document.hidden) return;
+
     try {
       const [tasksRes, listsRes] = await Promise.all([
         fetch('/api/tasks'),
@@ -255,20 +306,20 @@ export default function HomePage() {
       setWaitingTasks(tasks.filter((t) => t.board === 'waiting'));
       setListItems(lists);
     } catch {
-      // Erreur silencieuse - ne pas interrompre l'expérience utilisateur
+      // Erreur silencieuse - ne pas interrompre l'experience utilisateur
     }
   }, []);
 
-  // Polling toutes les 60 secondes pour détecter les items créés par le cron IMAP automatique
+  // Polling toutes les 60 secondes pour detecter les items crees par le cron IMAP automatique
   useEffect(() => {
     const interval = setInterval(silentRefresh, 60_000);
     return () => clearInterval(interval);
   }, [silentRefresh]);
 
   /**
-   * Déclenche une synchronisation IMAP manuelle.
-   * Recharge les listes et la file d'attente après la synchro pour afficher tous les nouveaux items.
-   * Affiche un message de résultat pendant 4 secondes.
+   * Declenche une synchronisation IMAP manuelle.
+   * Recharge les listes et la file d'attente apres la synchro.
+   * Affiche un message de resultat pendant 4 secondes.
    */
   async function handleManualSync(): Promise<void> {
     if (isSyncing) return;
@@ -282,7 +333,7 @@ export default function HomePage() {
 
       const { created, ignored } = await response.json() as { created: number; ignored: number };
 
-      // Recharge les listes ET les tâches pour intégrer tous les items importés ([TODO] inclus)
+      // Recharge les listes ET les taches pour integrer tous les items importes ([TODO] inclus)
       const [listsRes, tasksRes] = await Promise.all([
         fetch('/api/lists'),
         fetch('/api/tasks'),
@@ -301,14 +352,14 @@ export default function HomePage() {
 
       setSyncMessage(
         created > 0
-          ? `${created} item(s) importé(s), ${ignored} ignoré(s)`
-          : 'Aucun nouvel email à importer'
+          ? `${created} item(s) importe(s), ${ignored} ignore(s)`
+          : 'Aucun nouvel email a importer'
       );
     } catch {
       setSyncMessage('Erreur lors de la synchronisation');
     } finally {
       setIsSyncing(false);
-      // Efface le message après 4 secondes
+      // Efface le message apres 4 secondes
       setTimeout(() => setSyncMessage(null), 4000);
     }
   }
@@ -329,7 +380,7 @@ export default function HomePage() {
           onClick={() => { setIsLoading(true); loadData(); }}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          Réessayer
+          Reessayer
         </button>
       </div>
     );
@@ -337,19 +388,19 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white">
-      {/* En-tête de l'application */}
+      {/* En-tete de l'application */}
       <header className="bg-white dark:bg-gray-900 shadow-sm px-6 py-3 flex items-center justify-between gap-4">
         <h1 className="text-xl font-bold tracking-tight">
           {process.env.NEXT_PUBLIC_APP_TITLE ?? 'Dashorg'}
         </h1>
 
-        {/* Horloge flip-flap centrée dans le header */}
+        {/* Horloge flip-flap centree dans le header */}
         <div className="flex-1 flex justify-center">
           <FlipClock />
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Message de résultat de synchronisation */}
+          {/* Message de resultat de synchronisation */}
           {syncMessage && (
             <span className="text-xs text-gray-500 dark:text-gray-400 animate-pulse">
               {syncMessage}
@@ -364,7 +415,7 @@ export default function HomePage() {
             aria-label="Synchroniser les emails maintenant"
             title="Synchroniser les emails IMAP maintenant"
           >
-            {isSyncing ? 'Synchro...' : '↻ Synchro mail'}
+            {isSyncing ? 'Synchro...' : '\u21bb Synchro mail'}
           </button>
 
           {/* Bouton de basculement dark/light mode */}
@@ -374,7 +425,7 @@ export default function HomePage() {
             aria-label={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
             title={isDark ? 'Mode clair' : 'Mode sombre'}
           >
-            {isDark ? '☀️' : '🌙'}
+            {isDark ? '\u2600\ufe0f' : '\uD83C\uDF19'}
           </button>
 
           {/* Engrenage parametres */}
@@ -388,13 +439,13 @@ export default function HomePage() {
       {/* Contenu principal */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-10">
 
-        {/* ── SYSTÈME 1 : Gestion du quotidien ─────────────────────────────── */}
+        {/* SYSTEME 1 : Gestion du quotidien */}
         <section className="space-y-6">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
             Gestion du quotidien
           </h2>
 
-          {/* Tableaux Aujourd'hui et Demain côte à côte */}
+          {/* Tableaux Aujourd'hui et Demain cote a cote */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <TodayBoard
               tasks={todayTasks}
@@ -422,17 +473,20 @@ export default function HomePage() {
             onSelect={(task) => setSelectedTask(task)}
           />
 
-          {/* Archives — tâches terminées, repliées par défaut */}
+          {/* Archives - taches terminees, repliees par defaut */}
           <ArchivePanel
             tasks={archivedTasks}
+            total={archiveTotal}
             onRestore={handleArchiveRestore}
+            onLoadMore={handleLoadMoreArchive}
+            isLoadingMore={isLoadingMoreArchive}
           />
         </section>
 
-        {/* ── Séparateur visuel entre les deux systèmes ─────────────────────── */}
+        {/* Separateur visuel entre les deux systemes */}
         <hr className="border-gray-300 dark:border-gray-700" />
 
-        {/* ── SYSTÈME 2 : Listes personnelles ──────────────────────────────── */}
+        {/* SYSTEME 2 : Listes personnelles */}
         <section className="space-y-6">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
             Mes listes
@@ -447,10 +501,9 @@ export default function HomePage() {
           />
         </section>
 
-
       </main>
 
-      {/* Panneau de détail d'une tâche (slide-in) */}
+      {/* Panneau de detail d'une tache (slide-in) */}
       {selectedTask && (
         <TaskDetail
           task={selectedTask}

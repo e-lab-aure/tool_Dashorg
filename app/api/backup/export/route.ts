@@ -4,24 +4,19 @@
  * GET : genere un fichier ZIP contenant toutes les donnees en JSON et tous les fichiers (pieces jointes, images).
  *
  * Structure du ZIP :
- *   backup.json            — dump de toutes les tables SQLite
- *   uploads/tasks/{id}/    — pieces jointes des taches
- *   uploads/lists/{id}/    — images des items de listes
+ *   backup.json             -  dump de toutes les tables SQLite
+ *   uploads/tasks/{id}/     -  pieces jointes des taches
+ *   uploads/lists/{id}/     -  images des items de listes
  */
 
 import { NextResponse } from 'next/server';
 import AdmZip from 'adm-zip';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { UPLOADS_ROOT } from '@/lib/config';
 import fs from 'fs';
 import path from 'path';
 import type { Task, Attachment, ListItem, ListItemImage, ListCategory, RssFeed, RssArticle, BackupData } from '@/lib/types';
-
-/** Repertoire racine des uploads selon l'environnement */
-const UPLOADS_ROOT =
-  process.env.NODE_ENV === 'production'
-    ? '/app/uploads'
-    : path.join(process.cwd(), 'uploads');
 
 /**
  * Genere et renvoie un ZIP contenant toutes les donnees et fichiers Dashorg.
@@ -99,7 +94,7 @@ export async function GET(): Promise<NextResponse> {
 
     logger.info(
       'api/backup/export',
-      `GET — Export genere : ${tasks.length} taches, ${list_items.length} items, ${attachments.length} pieces jointes, ${list_item_images.length} images, ${rss_feeds.length} flux RSS, ${rss_articles.length} articles RSS — ${zipBuffer.length} octets`
+      `GET  -  Export genere : ${tasks.length} taches, ${list_items.length} items, ${attachments.length} pieces jointes, ${list_item_images.length} images, ${rss_feeds.length} flux RSS, ${rss_articles.length} articles RSS  -  ${zipBuffer.length} octets`
     );
 
     return new NextResponse(zipBuffer, {
@@ -111,7 +106,7 @@ export async function GET(): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    logger.error('api/backup/export', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/backup/export', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la generation du backup' }, { status: 500 });
   }
 }
@@ -142,7 +137,7 @@ function ajouterFichiersRecursivement(zip: AdmZip, dirPath: string, zipPrefix: s
       } catch (err) {
         logger.warning(
           'api/backup/export',
-          `Fichier ignore lors de l'export : ${fullPath} — ${(err as Error).message}`
+          `Fichier ignore lors de l'export : ${fullPath}  -  ${(err as Error).message}`
         );
       }
     }

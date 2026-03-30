@@ -1,7 +1,7 @@
 /**
  * @module logger
- * @description Utilitaire de journalisation centralisé.
- * Formate les messages selon le standard : [LEVEL] YYYY-MM-DD HH:MM:SS — contexte — message
+ * @description Utilitaire de journalisation centralise.
+ * Formate les messages selon le standard : [LEVEL] YYYY-MM-DD HH:MM:SS - contexte - message
  */
 
 /** Niveaux de log disponibles */
@@ -27,7 +27,7 @@ function formatTimestamp(): string {
  * @param message - Message descriptif de l'événement
  */
 function log(level: LogLevel, context: string, message: string): void {
-  const entry = `[${level}] ${formatTimestamp()} — ${context} — ${message}`;
+  const entry = `[${level}] ${formatTimestamp()} - ${context} - ${message}`;
 
   if (level === 'ERROR' || level === 'CRITICAL') {
     console.error(entry);
@@ -39,14 +39,14 @@ function log(level: LogLevel, context: string, message: string): void {
 }
 
 export const logger = {
-  /** Log de niveau DEBUG — informations de diagnostic détaillées */
+  /** Log de niveau DEBUG - informations de diagnostic detaillees */
   debug: (context: string, message: string) => log('DEBUG', context, message),
-  /** Log de niveau INFO — opérations normales */
+  /** Log de niveau INFO - operations normales */
   info: (context: string, message: string) => log('INFO', context, message),
-  /** Log de niveau WARNING — événements inattendus mais récupérables */
+  /** Log de niveau WARNING - evenements inattendus mais recuperables */
   warning: (context: string, message: string) => log('WARNING', context, message),
-  /** Log de niveau ERROR — échecs nécessitant attention */
+  /** Log de niveau ERROR - echecs necessitant attention */
   error: (context: string, message: string) => log('ERROR', context, message),
-  /** Log de niveau CRITICAL — échecs système graves */
+  /** Log de niveau CRITICAL - echecs systeme graves */
   critical: (context: string, message: string) => log('CRITICAL', context, message),
 };

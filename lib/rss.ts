@@ -8,6 +8,7 @@
 import Parser from 'rss-parser';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { RSS_MAX_ARTICLES_PER_FEED } from '@/lib/config';
 import type { RssFeed } from '@/lib/types';
 
 /** Type étendu pour les items avec les champs media non standards */
@@ -96,7 +97,7 @@ async function refreshFeed(feed: RssFeed): Promise<number> {
   try {
     parsed = await parser.parseURL(feed.url);
   } catch (err) {
-    logger.warning('rss', `Flux inaccessible : id=${feed.id} url="${feed.url}" — ${(err as Error).message}`);
+    logger.warning('rss', `Flux inaccessible : id=${feed.id} url="${feed.url}" - ${(err as Error).message}`);
     return 0;
   }
 
@@ -122,14 +123,40 @@ async function refreshFeed(feed: RssFeed): Promise<number> {
     if (result.changes > 0) inserted++;
   }
 
-  logger.info('rss', `Flux rafraîchi : id=${feed.id} name="${feed.name}" — ${inserted} nouvel(s) article(s)`);
+  logger.info('rss', `Flux rafraichi : id=${feed.id} name="${feed.name}" - ${inserted} nouvel(s) article(s)`);
   return inserted;
 }
 
 /**
- * Rafraîchit tous les flux RSS enregistrés en base.
- * Exécute les requêtes en parallèle pour limiter la durée totale.
- * @returns Nombre total de nouveaux articles insérés toutes sources confondues
+ * Supprime les articles les plus anciens d'un flux RSS si le nombre depasse la limite.
+ * Garde les RSS_MAX_ARTICLES_PER_FEED articles les plus recents (par published_at DESC).
+ * @param feedId - Identifiant du flux a nettoyer
+ * @returns Nombre d'articles supprimes
+ */
+function nettoyerArticlesFlux(feedId: number): number {
+  const result = db.prepare(`
+    DELETE FROM rss_articles
+    WHERE feed_id = @feed_id
+      AND id NOT IN (
+        SELECT id FROM rss_articles
+        WHERE feed_id = @feed_id
+        ORDER BY published_at DESC, id DESC
+        LIMIT @max_articles
+      )
+  `).run({ feed_id: feedId, max_articles: RSS_MAX_ARTICLES_PER_FEED });
+
+  if (result.changes > 0) {
+    logger.info('rss', `Nettoyage flux id=${feedId} - ${result.changes} article(s) ancien(s) supprimes`);
+  }
+
+  return result.changes;
+}
+
+/**
+ * Rafraichit tous les flux RSS enregistres en base.
+ * Execute les requetes en parallele pour limiter la duree totale.
+ * Applique un nettoyage apres chaque refresh pour eviter l'accumulation infinie d'articles.
+ * @returns Nombre total de nouveaux articles inseres toutes sources confondues
  */
 export async function refreshAllFeeds(): Promise<number> {
   const feeds = db.prepare('SELECT * FROM rss_feeds ORDER BY id ASC').all() as RssFeed[];
@@ -141,6 +168,11 @@ export async function refreshAllFeeds(): Promise<number> {
   let total = 0;
   for (const r of results) {
     if (r.status === 'fulfilled') total += r.value;
+  }
+
+  // Nettoyage des articles anciens pour chaque flux
+  for (const feed of feeds) {
+    nettoyerArticlesFlux(feed.id);
   }
 
   return total;

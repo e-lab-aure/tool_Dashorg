@@ -66,10 +66,10 @@ export async function PATCH(
 
     const updated = db.prepare('SELECT * FROM list_categories WHERE id = ?').get(id) as ListCategory;
 
-    logger.info('api/list-categories', `PATCH — Catégorie mise à jour : id=${id}`);
+    logger.info('api/list-categories', `PATCH  -  Catégorie mise à jour : id=${id}`);
     return NextResponse.json(updated);
   } catch (error) {
-    logger.error('api/list-categories', `PATCH — Erreur : ${(error as Error).message}`);
+    logger.error('api/list-categories', `PATCH  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la mise à jour de la catégorie' }, { status: 500 });
   }
 }
@@ -114,10 +114,10 @@ export async function DELETE(
 
     db.prepare('DELETE FROM list_categories WHERE id = ?').run(id);
 
-    logger.info('api/list-categories', `DELETE — Catégorie supprimée : "${cat.category}" (id=${id})`);
+    logger.info('api/list-categories', `DELETE  -  Catégorie supprimée : "${cat.category}" (id=${id})`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/list-categories', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/list-categories', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression de la catégorie' }, { status: 500 });
   }
 }

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/config';
 import type { Task } from '@/lib/types';
 
 /**
@@ -24,10 +25,10 @@ export async function GET(): Promise<NextResponse> {
       )
       .all() as Task[];
 
-    logger.info('api/tasks', `GET — ${tasks.length} tâches récupérées`);
+    logger.info('api/tasks', `GET  -  ${tasks.length} tâches récupérées`);
     return NextResponse.json(tasks);
   } catch (error) {
-    logger.error('api/tasks', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/tasks', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des tâches' }, { status: 500 });
   }
 }
@@ -37,7 +38,7 @@ export async function GET(): Promise<NextResponse> {
  * Le slot tomorrow est créé automatiquement car toute tâche non terminée le jour même
  * sera reportée au lendemain. Refuse si today contient déjà 5 tâches.
  * @param request - Requête contenant { title, description? }
- * @returns { task: Task, tomorrowSlot: Task | null } — le slot tomorrow est null si demain est plein
+ * @returns { task: Task, tomorrowSlot: Task | null }  -  le slot tomorrow est null si demain est plein
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -46,6 +47,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Validation du titre obligatoire
     if (!body.title || typeof body.title !== 'string' || body.title.trim() === '') {
       return NextResponse.json({ error: 'Le titre est obligatoire' }, { status: 400 });
+    }
+
+    if (body.title.trim().length > TITLE_MAX_LENGTH) {
+      return NextResponse.json(
+        { error: `Le titre ne peut pas depasser ${TITLE_MAX_LENGTH} caracteres` },
+        { status: 400 }
+      );
+    }
+
+    if (body.description && typeof body.description === 'string' && body.description.length > DESCRIPTION_MAX_LENGTH) {
+      return NextResponse.json(
+        { error: `La description ne peut pas depasser ${DESCRIPTION_MAX_LENGTH} caracteres` },
+        { status: 400 }
+      );
     }
 
     // Vérification de la limite de 5 tâches dans today
@@ -106,10 +121,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return { task: createdTask, tomorrowSlot: createdSlot };
     })();
 
-    logger.info('api/tasks', `POST — Tâche créée : id=${task.id}, titre="${task.title}", slot_tomorrow=${tomorrowSlot?.id ?? 'aucun'}`);
+    logger.info('api/tasks', `POST  -  Tâche créée : id=${task.id}, titre="${task.title}", slot_tomorrow=${tomorrowSlot?.id ?? 'aucun'}`);
     return NextResponse.json({ task, tomorrowSlot }, { status: 201 });
   } catch (error) {
-    logger.error('api/tasks', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/tasks', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la création de la tâche' }, { status: 500 });
   }
 }

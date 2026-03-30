@@ -20,10 +20,10 @@ export async function GET(): Promise<NextResponse> {
       .prepare('SELECT * FROM list_categories ORDER BY position ASC, created_at ASC')
       .all() as ListCategory[];
 
-    logger.info('api/list-categories', `GET — ${categories.length} catégorie(s) récupérée(s)`);
+    logger.info('api/list-categories', `GET  -  ${categories.length} catégorie(s) récupérée(s)`);
     return NextResponse.json(categories);
   } catch (error) {
-    logger.error('api/list-categories', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/list-categories', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des catégories' }, { status: 500 });
   }
 }
@@ -110,10 +110,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .prepare('SELECT * FROM list_categories WHERE id = ?')
       .get(result.lastInsertRowid) as ListCategory;
 
-    logger.info('api/list-categories', `POST — Catégorie créée : "${normalizedCategory}" (tag: ${normalizedTag})`);
+    logger.info('api/list-categories', `POST  -  Catégorie créée : "${normalizedCategory}" (tag: ${normalizedTag})`);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    logger.error('api/list-categories', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/list-categories', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la création de la catégorie' }, { status: 500 });
   }
 }

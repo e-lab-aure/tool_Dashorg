@@ -87,7 +87,7 @@ export default function TodayBoard({ tasks, onUpdate, onSelect, onTomorrowAdd, o
         onTomorrowChange(tomorrowSlot, deletedTomorrowSlotId);
       }
     } catch {
-      // Échec de la mise à jour — l'état local n'est pas modifié
+      // Échec de la mise à jour  -  l'état local n'est pas modifié
     }
   }
 
@@ -161,7 +161,7 @@ export default function TodayBoard({ tasks, onUpdate, onSelect, onTomorrowAdd, o
                 key={task.id}
                 className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
               >
-                {/* Sélecteur de statut — plus précis qu'une icône cyclique */}
+                {/* Sélecteur de statut  -  plus précis qu'une icône cyclique */}
                 <select
                   value={task.status}
                   onChange={(e) => handleStatusChange(task, e.target.value)}
@@ -176,7 +176,7 @@ export default function TodayBoard({ tasks, onUpdate, onSelect, onTomorrowAdd, o
                   ))}
                 </select>
 
-                {/* Titre cliquable — ouvre le panneau de détail */}
+                {/* Titre cliquable  -  ouvre le panneau de détail */}
                 <button
                   onClick={() => onSelect(task)}
                   className="flex-1 text-left text-sm text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400"

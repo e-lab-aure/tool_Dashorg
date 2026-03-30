@@ -19,15 +19,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import AdmZip from 'adm-zip';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { UPLOADS_ROOT } from '@/lib/config';
 import fs from 'fs';
 import path from 'path';
 import type { BackupData, RssFeed, RssArticle } from '@/lib/types';
-
-/** Repertoire racine des uploads selon l'environnement */
-const UPLOADS_ROOT =
-  process.env.NODE_ENV === 'production'
-    ? '/app/uploads'
-    : path.join(process.cwd(), 'uploads');
 
 /**
  * Recalcule le chemin absolu d'un fichier uploade en remplacant l'ancien
@@ -80,7 +75,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Extraction et validation du fichier backup.json
     const backupEntry = zip.getEntry('backup.json');
     if (!backupEntry) {
-      return NextResponse.json({ error: 'backup.json introuvable dans le ZIP — fichier invalide' }, { status: 400 });
+      return NextResponse.json({ error: 'backup.json introuvable dans le ZIP  -  fichier invalide' }, { status: 400 });
     }
 
     let backup: BackupData;
@@ -119,7 +114,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         insertCategory.run(cat);
       }
 
-      // 2. Restauration des taches — linked_task_id insere a NULL pour eviter
+      // 2. Restauration des taches  -  linked_task_id insere a NULL pour eviter
       //    les violations FK en cas d'insertion hors ordre
       const insertTask = db.prepare(`
         INSERT INTO tasks (id, title, description, status, board, slot_type, position, source, linked_task_id, archived_at, done_at, message_id, created_at, updated_at)
@@ -137,7 +132,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
 
-      // 3. Restauration des pieces jointes — recalcul du filepath pour l'environnement courant
+      // 3. Restauration des pieces jointes  -  recalcul du filepath pour l'environnement courant
       const insertAttachment = db.prepare(`
         INSERT INTO attachments (id, task_id, filename, filepath, mimetype, size_bytes, created_at)
         VALUES (@id, @task_id, @filename, @filepath, @mimetype, @size_bytes, @created_at)
@@ -167,7 +162,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
       }
 
-      // 5. Restauration des images d'items — recalcul du filepath pour l'environnement courant
+      // 5. Restauration des images d'items  -  recalcul du filepath pour l'environnement courant
       const insertImage = db.prepare(`
         INSERT INTO list_item_images (id, list_item_id, filename, filepath, mimetype, size_bytes, created_at)
         VALUES (@id, @list_item_id, @filename, @filepath, @mimetype, @size_bytes, @created_at)
@@ -176,7 +171,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         insertImage.run({ ...img, filepath: recalculerFilepath(img.filepath) });
       }
 
-      // 6. Restauration des flux RSS — compatibilite avec les anciens backups sans RSS
+      // 6. Restauration des flux RSS  -  compatibilite avec les anciens backups sans RSS
       if (backup.rss_feeds && backup.rss_feeds.length > 0) {
         const insertFeed = db.prepare(`
           INSERT INTO rss_feeds (id, url, name, created_at)
@@ -187,7 +182,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
       }
 
-      // 7. Restauration des articles RSS — INSERT OR IGNORE pour tolerer les doublons
+      // 7. Restauration des articles RSS  -  INSERT OR IGNORE pour tolerer les doublons
       //    (l'index UNIQUE sur url protege contre les reimportations apres refresh)
       if (backup.rss_articles && backup.rss_articles.length > 0) {
         const insertArticle = db.prepare(`
@@ -236,7 +231,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         fs.writeFileSync(destPath, entry.getData());
         fichiersRestores++;
       } catch (err) {
-        logger.warning('api/backup/import', `Fichier non restaure : ${entryName} — ${(err as Error).message}`);
+        logger.warning('api/backup/import', `Fichier non restaure : ${entryName}  -  ${(err as Error).message}`);
         fichiersIgnores++;
       }
     }
@@ -246,7 +241,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     logger.info(
       'api/backup/import',
-      `POST — Import termine : ${backup.tasks.length} taches, ${backup.list_items.length} items, ` +
+      `POST  -  Import termine : ${backup.tasks.length} taches, ${backup.list_items.length} items, ` +
       `${backup.attachments.length} pieces jointes, ${backup.list_item_images.length} images, ` +
       `${rssFeedsCount} flux RSS, ${rssArticlesCount} articles RSS, ` +
       `${fichiersRestores} fichiers restaures, ${fichiersIgnores} fichiers ignores`
@@ -267,7 +262,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    logger.error('api/backup/import', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/backup/import', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de l\'import du backup' }, { status: 500 });
   }
 }

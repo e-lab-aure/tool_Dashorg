@@ -13,12 +13,14 @@ export interface Task {
   slot_type: 'locked' | 'free' | null;
   position: number | null;
   source: 'manual' | 'imap';
-  /** Identifiant du slot verrouillé correspondant dans le board tomorrow (si existant) */
+  /** Identifiant du slot verrouille correspondant dans le board tomorrow (si existant) */
   linked_task_id: number | null;
-  /** Date d'archivage, renseignée lors du rollover pour les tâches terminées */
+  /** Date d'archivage, renseignee lors du rollover pour les taches terminees */
   archived_at: string | null;
-  /** Date a laquelle la tâche a été marquée comme terminée (done) */
+  /** Date a laquelle la tache a ete marquee comme terminee (done) */
   done_at: string | null;
+  /** Identifiant unique de l'email source (RFC 2822 Message-ID), null pour les taches manuelles */
+  message_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,16 +88,22 @@ export interface ListCategory {
 /** Représente un item dans les listes */
 export interface ListItem {
   id: number;
-  /** Clé de catégorie libre, correspondant à ListCategory.category */
+  /** Cle de categorie libre, correspondant a ListCategory.category */
   category: string;
   title: string;
   description: string | null;
   extra_data: string | null;
+  /** 0 = non fait, 1 = fait (booleen SQLite) */
   done: number;
+  /** 0 = actif, 1 = archive (booleen SQLite) */
   archived: number;
   source: 'manual' | 'imap';
+  /** Identifiant unique de l'email source (RFC 2822 Message-ID), null pour les items manuels */
+  message_id: string | null;
+  /** Position d'affichage dans la liste (tri manuel par drag-and-drop) */
+  position: number;
   created_at: string;
-  /** Images associées à cet item, peuplées par l'API (non stockées en base) */
+  /** Images associees a cet item, peuplees par l'API (non stockees en base) */
   images?: ListItemImage[];
 }
 
@@ -117,8 +125,8 @@ export interface BackupData {
   attachments: Attachment[];
   list_items: ListItem[];
   list_item_images: ListItemImage[];
-  /** Flux RSS suivis — optionnel pour compatibilité avec les anciens backups */
+  /** Flux RSS suivis - optionnel pour compatibilite avec les anciens backups */
   rss_feeds?: RssFeed[];
-  /** Articles RSS non lus — optionnel pour compatibilité avec les anciens backups */
+  /** Articles RSS non lus - optionnel pour compatibilite avec les anciens backups */
   rss_articles?: RssArticle[];
 }

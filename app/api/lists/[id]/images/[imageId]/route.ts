@@ -45,14 +45,14 @@ export async function GET(
     }
 
     if (!fs.existsSync(image.filepath)) {
-      logger.error('api/lists/images', `GET — Fichier manquant sur le disque : ${image.filepath}`);
+      logger.error('api/lists/images', `GET  -  Fichier manquant sur le disque : ${image.filepath}`);
       return NextResponse.json({ error: 'Fichier introuvable sur le serveur' }, { status: 404 });
     }
 
     const fileBuffer = fs.readFileSync(image.filepath);
     const contentType = image.mimetype ?? 'image/jpeg';
 
-    logger.info('api/lists/images', `GET — Image servie : id=${imageId}, filename="${image.filename}"`);
+    logger.info('api/lists/images', `GET  -  Image servie : id=${imageId}, filename="${image.filename}"`);
 
     return new NextResponse(fileBuffer, {
       status: 200,
@@ -64,7 +64,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    logger.error('api/lists/images', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists/images', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la lecture du fichier' }, { status: 500 });
   }
 }
@@ -100,15 +100,15 @@ export async function DELETE(
     if (fs.existsSync(image.filepath)) {
       fs.unlinkSync(image.filepath);
     } else {
-      logger.warning('api/lists/images', `DELETE — Fichier déjà absent du disque : ${image.filepath}`);
+      logger.warning('api/lists/images', `DELETE  -  Fichier déjà absent du disque : ${image.filepath}`);
     }
 
     db.prepare('DELETE FROM list_item_images WHERE id = ?').run(imageId);
 
-    logger.info('api/lists/images', `DELETE — Image supprimée : id=${imageId}, filename="${image.filename}"`);
+    logger.info('api/lists/images', `DELETE  -  Image supprimée : id=${imageId}, filename="${image.filename}"`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/lists/images', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists/images', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression de l\'image' }, { status: 500 });
   }
 }

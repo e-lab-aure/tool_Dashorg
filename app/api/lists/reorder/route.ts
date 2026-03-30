@@ -65,10 +65,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const enriched = items.map((item) => ({ ...item, images: imagesByItem.get(item.id) ?? [] }));
 
-    logger.info('api/lists/reorder', `POST — ${ids.length} item(s) réordonnés`);
+    logger.info('api/lists/reorder', `POST  -  ${ids.length} item(s) réordonnés`);
     return NextResponse.json(enriched);
   } catch (error) {
-    logger.error('api/lists/reorder', `POST — Erreur : ${(error as Error).message}`);
+    logger.error('api/lists/reorder', `POST  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors du réordonnancement' }, { status: 500 });
   }
 }

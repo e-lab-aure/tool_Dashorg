@@ -5,14 +5,9 @@
  */
 
 import Database from 'better-sqlite3';
-import path from 'path';
 import fs from 'fs';
-
-// Chemin de la base de données selon l'environnement
-const DB_PATH =
-  process.env.NODE_ENV === 'production'
-    ? '/app/data/dashorg.db'
-    : path.join(process.cwd(), 'data', 'dashorg.db');
+import path from 'path';
+import { DB_PATH } from '@/lib/config';
 
 /**
  * Applique les migrations de schéma nécessaires sur une base existante.
@@ -25,14 +20,14 @@ function applyMigrations(db: Database.Database): void {
     db.exec('ALTER TABLE tasks ADD COLUMN linked_task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL');
     db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_linked_task_id ON tasks(linked_task_id)');
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : date d'archivage pour les tâches terminées
   try {
     db.exec('ALTER TABLE tasks ADD COLUMN archived_at DATETIME');
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : archivage des items de listes
@@ -40,7 +35,7 @@ function applyMigrations(db: Database.Database): void {
     db.exec('ALTER TABLE list_items ADD COLUMN archived INTEGER DEFAULT 0');
     db.exec('CREATE INDEX IF NOT EXISTS idx_list_items_archived ON list_items(archived)');
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : seed des catégories de liste par défaut si la table vient d'être créée
@@ -70,7 +65,7 @@ function applyMigrations(db: Database.Database): void {
     db.exec('UPDATE list_items SET position = id WHERE position = 0');
     db.exec('CREATE INDEX IF NOT EXISTS idx_list_items_position ON list_items(category, position)');
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : identifiant unique de l'email source pour éviter les doublons IMAP sur les items de liste
@@ -81,7 +76,7 @@ function applyMigrations(db: Database.Database): void {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_list_items_message_id ON list_items(message_id) WHERE message_id IS NOT NULL'
     );
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : identifiant unique de l'email source pour éviter les doublons IMAP sur les tâches
@@ -91,7 +86,7 @@ function applyMigrations(db: Database.Database): void {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_message_id ON tasks(message_id) WHERE message_id IS NOT NULL'
     );
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : horodatage du passage en statut "done"
@@ -99,7 +94,7 @@ function applyMigrations(db: Database.Database): void {
   try {
     db.exec('ALTER TABLE tasks ADD COLUMN done_at DATETIME');
   } catch {
-    // Colonne déjà présente — migration ignorée
+    // Colonne déjà présente  -  migration ignorée
   }
 
   // Migration : tables RSS (flux et articles)
@@ -127,7 +122,7 @@ function applyMigrations(db: Database.Database): void {
     db.exec('CREATE INDEX IF NOT EXISTS idx_rss_articles_feed_id ON rss_articles(feed_id)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_rss_articles_published ON rss_articles(published_at DESC)');
   } catch {
-    // Tables déjà créées — migration ignorée
+    // Tables déjà créées  -  migration ignorée
   }
 
   // Migration : description et image_url sur les articles RSS existants
@@ -231,9 +226,13 @@ function getDatabase(): Database.Database {
 
   const db = new Database(DB_PATH);
 
-  // Active les foreign keys pour respecter les contraintes de CASCADE
+  // Optimisations SQLite pour la fiabilite et les performances
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  // Attente jusqu'a 5 secondes si la base est verrouilee par un autre processus
+  db.pragma('busy_timeout = 5000');
+  // Cache memoire de 4 Mo pour accelerer les requetes repetees
+  db.pragma('cache_size = -4000');
 
   initTables(db);
   applyMigrations(db);

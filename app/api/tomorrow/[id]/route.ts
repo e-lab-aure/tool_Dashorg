@@ -67,17 +67,17 @@ export async function PATCH(
 
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task;
 
-    logger.info('api/tomorrow', `PATCH — Slot mis à jour : id=${id}`);
+    logger.info('api/tomorrow', `PATCH  -  Slot mis à jour : id=${id}`);
     return NextResponse.json(task);
   } catch (error) {
-    logger.error('api/tomorrow', `PATCH — Erreur : ${(error as Error).message}`);
+    logger.error('api/tomorrow', `PATCH  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la mise à jour du slot' }, { status: 500 });
   }
 }
 
 /**
  * Supprime un slot libre du tableau tomorrow.
- * Interdit de supprimer un slot de type "locked" — ces slots sont gérés par le rollover automatique.
+ * Interdit de supprimer un slot de type "locked"  -  ces slots sont gérés par le rollover automatique.
  * @param _request - Requête HTTP (non utilisée pour DELETE)
  * @param params - Paramètres de route contenant l'id du slot
  * @returns Confirmation de suppression
@@ -112,10 +112,10 @@ export async function DELETE(
 
     db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
 
-    logger.info('api/tomorrow', `DELETE — Slot libre supprimé : id=${id}`);
+    logger.info('api/tomorrow', `DELETE  -  Slot libre supprimé : id=${id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/tomorrow', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/tomorrow', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression du slot' }, { status: 500 });
   }
 }

@@ -122,7 +122,7 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
       const { task: updated } = await response.json() as { task: Task; tomorrowSlot: Task | null; deletedTomorrowSlotId: number | null };
       onUpdate(updated);
     } catch (err) {
-      // La sauvegarde a échoué — on ne modifie pas l'état local
+      // La sauvegarde a échoué  -  on ne modifie pas l'état local
     }
   }
 
@@ -174,7 +174,7 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
       if (!response.ok) throw new Error('Erreur lors de la suppression');
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
     } catch {
-      // Échec silencieux — la pièce jointe reste dans la liste (cohérence UI)
+      // Échec silencieux  -  la pièce jointe reste dans la liste (cohérence UI)
     }
   }
 
@@ -228,7 +228,7 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
             />
           </div>
 
-          {/* Champ description — lecture avec liens cliquables, édition au clic */}
+          {/* Champ description  -  lecture avec liens cliquables, édition au clic */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -245,7 +245,7 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
             </div>
 
             {editingDescription ? (
-              /* Mode édition — textarea standard */
+              /* Mode édition  -  textarea standard */
               <textarea
                 id="task-description"
                 autoFocus
@@ -266,7 +266,7 @@ export default function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps)
                 placeholder="Ajouter une description..."
               />
             ) : (
-              /* Mode lecture — texte avec liens cliquables, clic pour éditer */
+              /* Mode lecture  -  texte avec liens cliquables, clic pour éditer */
               <div
                 onClick={() => setEditingDescription(true)}
                 className="min-h-[2.5rem] w-full rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-white px-3 py-2 text-sm cursor-text whitespace-pre-wrap"

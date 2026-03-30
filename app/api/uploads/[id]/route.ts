@@ -39,14 +39,14 @@ export async function GET(
 
     // Vérifie que le fichier existe physiquement sur le disque
     if (!fs.existsSync(attachment.filepath)) {
-      logger.error('api/uploads', `GET — Fichier manquant sur le disque : ${attachment.filepath}`);
+      logger.error('api/uploads', `GET  -  Fichier manquant sur le disque : ${attachment.filepath}`);
       return NextResponse.json({ error: 'Fichier introuvable sur le serveur' }, { status: 404 });
     }
 
     const fileBuffer = fs.readFileSync(attachment.filepath);
     const contentType = attachment.mimetype ?? 'application/octet-stream';
 
-    logger.info('api/uploads', `GET — Fichier servi : id=${id}, filename="${attachment.filename}"`);
+    logger.info('api/uploads', `GET  -  Fichier servi : id=${id}, filename="${attachment.filename}"`);
 
     return new NextResponse(fileBuffer, {
       status: 200,
@@ -57,7 +57,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    logger.error('api/uploads', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/uploads', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la lecture du fichier' }, { status: 500 });
   }
 }
@@ -91,16 +91,16 @@ export async function DELETE(
     if (fs.existsSync(attachment.filepath)) {
       fs.unlinkSync(attachment.filepath);
     } else {
-      logger.warning('api/uploads', `DELETE — Fichier déjà absent du disque : ${attachment.filepath}`);
+      logger.warning('api/uploads', `DELETE  -  Fichier déjà absent du disque : ${attachment.filepath}`);
     }
 
     // Supprime l'enregistrement en base
     db.prepare('DELETE FROM attachments WHERE id = ?').run(id);
 
-    logger.info('api/uploads', `DELETE — Pièce jointe supprimée : id=${id}, filename="${attachment.filename}"`);
+    logger.info('api/uploads', `DELETE  -  Pièce jointe supprimée : id=${id}, filename="${attachment.filename}"`);
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('api/uploads', `DELETE — Erreur : ${(error as Error).message}`);
+    logger.error('api/uploads', `DELETE  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la suppression de la pièce jointe' }, { status: 500 });
   }
 }

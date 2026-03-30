@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
 
 /**
  * Déclenche manuellement une synchronisation IMAP et retourne le bilan.
- * @returns { created: number, ignored: number } — bilan de la synchronisation
+ * @returns { created: number, ignored: number }  -  bilan de la synchronisation
  */
 export async function POST(): Promise<NextResponse> {
   logger.info('api/sync', 'Synchronisation manuelle déclenchée');
@@ -21,7 +21,7 @@ export async function POST(): Promise<NextResponse> {
 
     logger.info(
       'api/sync',
-      `Synchronisation terminée — créés: ${result.created}, ignorés: ${result.ignored}`
+      `Synchronisation terminée  -  créés: ${result.created}, ignorés: ${result.ignored}`
     );
 
     return NextResponse.json(result);

@@ -59,10 +59,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const articles = db.prepare(query).all(...params) as RssArticle[];
 
-    logger.info('api/rss/articles', `GET — ${articles.length} article(s) retourné(s) (offset=${offset}, limit=${limit})`);
+    logger.info('api/rss/articles', `GET  -  ${articles.length} article(s) retourné(s) (offset=${offset}, limit=${limit})`);
     return NextResponse.json(articles);
   } catch (error) {
-    logger.error('api/rss/articles', `GET — Erreur : ${(error as Error).message}`);
+    logger.error('api/rss/articles', `GET  -  Erreur : ${(error as Error).message}`);
     return NextResponse.json({ error: 'Erreur lors de la récupération des articles' }, { status: 500 });
   }
 }
