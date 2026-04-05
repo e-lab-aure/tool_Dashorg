@@ -11,10 +11,12 @@
  * - popup ℹ avec recherche temps réel listant toutes les listes et leurs tags
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { ListItem, ListItemImage, ListCategory } from '@/lib/types';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import type { ListItem, ListCategory } from '@/lib/types';
 import EmojiPickerButton from '@/components/EmojiPickerButton';
 import LinkedText from '@/components/LinkedText';
+import ImageThumbnails from '@/components/ImageThumbnails';
+import GlobalListView from '@/components/GlobalListView';
 
 /** Props du composant ListPanel */
 interface ListPanelProps {
@@ -24,82 +26,6 @@ interface ListPanelProps {
   onDelete: (itemId: number) => void;
   /** Callback déclenché après un réordonnancement : reçoit les items mis à jour avec leurs nouvelles positions */
   onReorder: (items: ListItem[]) => void;
-}
-
-/** Props du composant ImageThumbnails */
-interface ImageThumbnailsProps {
-  images: ListItemImage[];
-  itemId: number;
-}
-
-/**
- * Affiche les miniatures des images avec un popup intégré au clic.
- * Un second clic sur la même miniature (ou sur le fond sombre) ferme le popup.
- * @param images - Liste des images de l'item
- * @param itemId - Identifiant de l'item parent
- */
-function ImageThumbnails({ images, itemId }: ImageThumbnailsProps) {
-  const [openId, setOpenId] = useState<number | null>(null);
-
-  /** Bascule le popup : ouvre l'image cliquée, ferme si déjà ouverte. */
-  const handleThumbnailClick = useCallback((imgId: number) => {
-    setOpenId((prev) => (prev === imgId ? null : imgId));
-  }, []);
-
-  const openImage = images.find((img) => img.id === openId);
-
-  return (
-    <>
-      <div className="flex flex-wrap gap-1.5 mt-1.5">
-        {images.map((img) => (
-          <button
-            key={img.id}
-            type="button"
-            onClick={() => handleThumbnailClick(img.id)}
-            title={img.filename}
-            className={`w-12 h-12 rounded overflow-hidden border-2 transition-colors shrink-0 ${
-              openId === img.id
-                ? 'border-blue-500'
-                : 'border-gray-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
-            }`}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/api/lists/${itemId}/images/${img.id}`}
-              alt={img.filename}
-              className="w-full h-full object-cover"
-            />
-          </button>
-        ))}
-      </div>
-
-      {/* Popup lightbox  -  fond sombre cliquable pour fermer */}
-      {openImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={() => setOpenId(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label={openImage.filename}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/lists/${itemId}/images/${openImage.id}`}
-            alt={openImage.filename}
-            className="max-w-[90vw] max-h-[85vh] rounded-lg shadow-2xl object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            onClick={() => setOpenId(null)}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors flex items-center justify-center text-lg leading-none"
-            aria-label="Fermer"
-          >
-            ×
-          </button>
-        </div>
-      )}
-    </>
-  );
 }
 
 /**
@@ -142,6 +68,9 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+
+  // Mode vue globale (recherche + filtres cross-catégories)
+  const [isGlobalView, setIsGlobalView] = useState(false);
 
   /**
    * Charge les catégories depuis l'API au montage du composant.
@@ -729,7 +658,39 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
         >
           + Liste
         </button>
+
+        {/* Bouton bascule vue globale */}
+        <button
+          onClick={() => {
+            setIsGlobalView((v) => {
+              if (!v) {
+                setShowForm(false);
+                setEditingId(null);
+                setShowNewListForm(false);
+              }
+              return !v;
+            });
+          }}
+          className={`ml-auto px-3 py-2 text-sm font-medium rounded-t-md transition-colors ${
+            isGlobalView
+              ? 'bg-indigo-500 text-white'
+              : 'text-gray-400 hover:text-indigo-500 dark:text-gray-500 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+          title={isGlobalView ? 'Revenir aux onglets' : 'Vue globale - recherche et filtres'}
+        >
+          🔍 Vue globale
+        </button>
       </div>
+
+      {isGlobalView ? (
+        <GlobalListView
+          items={items}
+          categories={categories}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      ) : (
+      <>
 
       {/* Tag de la liste active affiché sous les onglets */}
       {activeCat && (
@@ -1087,6 +1048,8 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
             </ul>
           )}
         </div>
+      )}
+      </>
       )}
     </section>
   );
