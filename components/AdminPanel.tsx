@@ -215,7 +215,7 @@ export default function AdminPanel() {
             <div className="flex flex-col flex-1 min-h-0">
 
               {/* SECTION HAUTE : Emails en attente */}
-              <div className="flex flex-col shrink-0 max-h-[55%] border-b border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col shrink-0 max-h-[75%] border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between px-5 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/40 shrink-0">
                   <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                     Emails en attente
@@ -322,7 +322,7 @@ export default function AdminPanel() {
               </div>
 
               {/* SECTION BASSE : Console de logs */}
-              <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col min-h-0 max-h-[25%]">
                 <div className="flex items-center justify-between px-5 py-2 bg-gray-900 dark:bg-gray-950 shrink-0">
                   <h3 className="text-xs font-mono font-semibold text-green-400">
                     Console ({logs.length}/{50} entrées)
