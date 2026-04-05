@@ -58,6 +58,11 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete }: ListPane
   const [infoSearch, setInfoSearch] = useState('');
   const infoSearchRef = useRef<HTMLInputElement>(null);
 
+  // Édition inline (clic sur titre ou description)
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
   // Mode vue globale (recherche + filtres cross-catégories)
   const [isGlobalView, setIsGlobalView] = useState(false);
 
@@ -155,6 +160,39 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete }: ListPane
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
   const tagPreview = tagKeyPreview ? `[${tagKeyPreview}]` : '';
+
+  function handleStartEdit(item: ListItem): void {
+    if (item.done) return;
+    setEditingId(item.id);
+    setEditTitle(item.title);
+    setEditDescription(item.description ?? '');
+  }
+
+  function handleCancelEdit(): void {
+    setEditingId(null);
+    setEditTitle('');
+    setEditDescription('');
+  }
+
+  async function handleSaveEdit(item: ListItem): Promise<void> {
+    const trimmedTitle = editTitle.trim();
+    if (!trimmedTitle) { handleCancelEdit(); return; }
+    if (trimmedTitle === item.title && editDescription.trim() === (item.description ?? '')) {
+      handleCancelEdit(); return;
+    }
+    try {
+      const res = await fetch(`/api/lists/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmedTitle, description: editDescription.trim() || null }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json() as ListItem;
+      onUpdate(updated);
+    } catch { /* silence */ } finally {
+      handleCancelEdit();
+    }
+  }
 
   /**
    * Bascule le statut fait/non-fait d'un item.
@@ -811,22 +849,69 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete }: ListPane
 
             {/* Contenu de l'item */}
             <div className="flex-1 min-w-0">
-              <p
-                className={`text-sm font-medium ${
-                  item.done
-                    ? 'line-through text-gray-400 dark:text-gray-500'
-                    : 'text-gray-900 dark:text-white'
-                }`}
-              >
-                {item.title}
-              </p>
-              {item.description && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  <LinkedText text={item.description} />
-                </p>
-              )}
-              {item.images && item.images.length > 0 && (
-                <ImageThumbnails images={item.images} itemId={item.id} />
+              {editingId === item.id ? (
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit(item);
+                      if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    onBlur={() => handleSaveEdit(item)}
+                    className="w-full text-sm rounded border border-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit(item);
+                      if (e.key === 'Escape') handleCancelEdit();
+                    }}
+                    placeholder="Description (optionnelle)..."
+                    className="w-full text-xs rounded border border-blue-300 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                  {item.images && item.images.length > 0 && (
+                    <ImageThumbnails images={item.images} itemId={item.id} />
+                  )}
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Entrée · Échap pour annuler</p>
+                </div>
+              ) : (
+                <>
+                  <p
+                    onClick={() => handleStartEdit(item)}
+                    className={`text-sm font-medium ${
+                      item.done
+                        ? 'line-through text-gray-400 dark:text-gray-500'
+                        : 'text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
+                    }`}
+                    title={item.done ? undefined : 'Cliquer pour modifier'}
+                  >
+                    {item.title}
+                  </p>
+                  {item.description ? (
+                    <p
+                      onClick={() => handleStartEdit(item)}
+                      className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                      title="Cliquer pour modifier"
+                    >
+                      <LinkedText text={item.description} />
+                    </p>
+                  ) : !item.done && (
+                    <p
+                      onClick={() => handleStartEdit(item)}
+                      className="text-xs text-gray-300 dark:text-gray-600 mt-0.5 cursor-pointer italic"
+                    >
+                      Ajouter une description…
+                    </p>
+                  )}
+                  {item.images && item.images.length > 0 && (
+                    <ImageThumbnails images={item.images} itemId={item.id} />
+                  )}
+                </>
               )}
             </div>
 
