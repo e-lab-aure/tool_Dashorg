@@ -272,18 +272,6 @@ export default function HomePage() {
   }
 
   /**
-   * Met a jour l'etat local apres un reordonnancement d'items dans une categorie.
-   * @param reorderedItems - Items reordonnes retournes par l'API avec les nouvelles positions
-   */
-  function handleListReorder(reorderedItems: ListItem[]): void {
-    const updatedIds = new Set(reorderedItems.map((i) => i.id));
-    setListItems((prev) => [
-      ...prev.filter((i) => !updatedIds.has(i.id)),
-      ...reorderedItems,
-    ]);
-  }
-
-  /**
    * Recharge silencieusement les listes et les taches en arriere-plan.
    * Utilise par le polling automatique pour detecter les nouveaux items crees par le cron IMAP.
    * Ne s'execute pas si l'onglet est masque (document.hidden) pour economiser les ressources.
@@ -501,7 +489,6 @@ export default function HomePage() {
             onAdd={handleListAdd}
             onUpdate={handleListUpdate}
             onDelete={handleListDelete}
-            onReorder={handleListReorder}
           />
         </section>
 

@@ -17,6 +17,7 @@ import EmojiPickerButton from '@/components/EmojiPickerButton';
 import LinkedText from '@/components/LinkedText';
 import ImageThumbnails from '@/components/ImageThumbnails';
 import GlobalListView from '@/components/GlobalListView';
+import ListItemDetail from '@/components/ListItemDetail';
 
 /** Props du composant ListPanel */
 interface ListPanelProps {
@@ -24,15 +25,13 @@ interface ListPanelProps {
   onAdd: (item: ListItem) => void;
   onUpdate: (item: ListItem) => void;
   onDelete: (itemId: number) => void;
-  /** Callback déclenché après un réordonnancement : reçoit les items mis à jour avec leurs nouvelles positions */
-  onReorder: (items: ListItem[]) => void;
 }
 
 /**
  * Composant de panneau de listes avec onglets dynamiques, édition inline, archivage,
  * création de nouvelles listes et popup d'informations avec recherche.
  */
-export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder }: ListPanelProps) {
+export default function ListPanel({ items, onAdd, onUpdate, onDelete }: ListPanelProps) {
   // Catégories chargées depuis l'API
   const [categories, setCategories] = useState<ListCategory[]>([]);
   const [activeTab, setActiveTab] = useState<string>('');
@@ -59,17 +58,11 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
   const [infoSearch, setInfoSearch] = useState('');
   const infoSearchRef = useRef<HTMLInputElement>(null);
 
-  // État du drag & drop pour le réordonnancement des items
-  const [draggedId, setDraggedId] = useState<number | null>(null);
-  const [dragOverId, setDragOverId] = useState<number | null>(null);
-
-  // État de l'édition inline
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-
   // Mode vue globale (recherche + filtres cross-catégories)
   const [isGlobalView, setIsGlobalView] = useState(false);
+
+  // Panneau de détail d'item (double-clic)
+  const [selectedItem, setSelectedItem] = useState<ListItem | null>(null);
 
   // Catégories masquées dans la barre d'onglets (persistées en localStorage)
   const [hiddenCats, setHiddenCats] = useState<Set<string>>(() => {
@@ -164,67 +157,10 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
   const tagPreview = tagKeyPreview ? `[${tagKeyPreview}]` : '';
 
   /**
-   * Démarre l'édition inline d'un item.
-   * @param item - Item à éditer
-   */
-  function handleStartEdit(item: ListItem): void {
-    if (item.done || item.archived) return;
-    setEditingId(item.id);
-    setEditTitle(item.title);
-    setEditDescription(item.description ?? '');
-  }
-
-  /**
-   * Annule l'édition en cours sans sauvegarder.
-   */
-  function handleCancelEdit(): void {
-    setEditingId(null);
-    setEditTitle('');
-    setEditDescription('');
-  }
-
-  /**
-   * Sauvegarde les modifications de l'item en cours d'édition via l'API.
-   * @param item - Item d'origine, pour détecter les changements
-   */
-  async function handleSaveEdit(item: ListItem): Promise<void> {
-    const trimmedTitle = editTitle.trim();
-    if (!trimmedTitle) {
-      handleCancelEdit();
-      return;
-    }
-
-    if (trimmedTitle === item.title && editDescription.trim() === (item.description ?? '')) {
-      handleCancelEdit();
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/lists/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: editDescription.trim() || null,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Erreur lors de la sauvegarde');
-
-      const updated = await response.json() as ListItem;
-      onUpdate(updated);
-    } catch (err) {
-    } finally {
-      handleCancelEdit();
-    }
-  }
-
-  /**
    * Bascule le statut fait/non-fait d'un item.
    * @param item - Item à basculer
    */
   async function handleToggleDone(item: ListItem): Promise<void> {
-    if (editingId === item.id) handleCancelEdit();
 
     try {
       const response = await fetch(`/api/lists/${item.id}`, {
@@ -389,55 +325,6 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
         const remaining = categories.filter((c) => c.id !== cat.id);
         setActiveTab(remaining[0]?.category ?? '');
       }
-    } catch (err) {
-    }
-  }
-
-  /**
-   * Ordre d'affichage des items actifs calculé en temps réel pendant le drag.
-   * Déplace visuellement l'item glissé à la position de l'item survolé sans toucher l'état.
-   */
-  const displayItems = useMemo<ListItem[]>(() => {
-    if (!draggedId || !dragOverId || draggedId === dragOverId) return activeItems;
-    const result = [...activeItems];
-    const fromIdx = result.findIndex((i) => i.id === draggedId);
-    const toIdx = result.findIndex((i) => i.id === dragOverId);
-    if (fromIdx === -1 || toIdx === -1) return activeItems;
-    const [moved] = result.splice(fromIdx, 1);
-    result.splice(toIdx, 0, moved);
-    return result;
-  }, [activeItems, draggedId, dragOverId]);
-
-  /**
-   * Finalise le réordonnancement après un drop réussi.
-   * Envoie les IDs dans le nouvel ordre à l'API et notifie le parent.
-   * @param targetId - ID de l'item sur lequel le drag s'est terminé
-   */
-  async function handleDropOnItem(targetId: number): Promise<void> {
-    if (!draggedId || draggedId === targetId) return;
-
-    const reordered = [...activeItems];
-    const fromIdx = reordered.findIndex((i) => i.id === draggedId);
-    const toIdx = reordered.findIndex((i) => i.id === targetId);
-    if (fromIdx === -1 || toIdx === -1) return;
-
-    const [moved] = reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, moved);
-
-    setDraggedId(null);
-    setDragOverId(null);
-
-    try {
-      const response = await fetch('/api/lists/reorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: reordered.map((i) => i.id) }),
-      });
-
-      if (!response.ok) throw new Error('Erreur lors du réordonnancement');
-
-      const updated = await response.json() as ListItem[];
-      onReorder(updated);
     } catch (err) {
     }
   }
@@ -660,7 +547,6 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
                 setActiveTab(cat.category);
                 setShowForm(false);
                 setShowArchive(false);
-                handleCancelEdit();
               }}
               onDoubleClick={(e) => {
                 e.preventDefault();
@@ -700,7 +586,6 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
             setIsGlobalView((v) => {
               if (!v) {
                 setShowForm(false);
-                setEditingId(null);
                 setShowListManager(false);
               }
               return !v;
@@ -894,93 +779,54 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
           </li>
         )}
 
-        {displayItems.map((item) => (
+        {activeItems.map((item) => (
           <li
             key={item.id}
-            draggable={!item.done && editingId !== item.id}
-            onDragStart={() => setDraggedId(item.id)}
-            onDragOver={(e) => { e.preventDefault(); setDragOverId(item.id); }}
-            onDrop={(e) => { e.preventDefault(); handleDropOnItem(item.id); }}
-            onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
-            className={[
-              'flex items-start gap-3 p-3 rounded-lg transition-colors',
-              item.done ? 'bg-gray-50 dark:bg-gray-700/40 opacity-70' : 'bg-gray-50 dark:bg-gray-700',
-              draggedId === item.id ? 'opacity-40' : '',
-              dragOverId === item.id && draggedId !== item.id
-                ? 'ring-2 ring-blue-400 dark:ring-blue-500'
-                : '',
-              !item.done && editingId !== item.id ? 'cursor-grab active:cursor-grabbing' : '',
-            ].filter(Boolean).join(' ')}
+            className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
+              item.done ? 'bg-gray-50 dark:bg-gray-700/40 opacity-70' : 'bg-gray-50 dark:bg-gray-700'
+            }`}
           >
-            {/* Bouton fait/non-fait */}
-            <button
-              onClick={() => handleToggleDone(item)}
-              className={`shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                item.done
-                  ? 'border-green-500 bg-green-500 text-white'
-                  : 'border-gray-300 dark:border-gray-500 hover:border-green-400'
-              }`}
-              aria-label={item.done ? 'Marquer comme non fait' : 'Marquer comme fait'}
-            >
-              {item.done ? '✓' : ''}
-            </button>
+            {/* Bouton fait/non-fait + bouton détail */}
+            <div className="shrink-0 flex flex-col items-center gap-1 mt-0.5">
+              <button
+                onClick={() => handleToggleDone(item)}
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  item.done
+                    ? 'border-green-500 bg-green-500 text-white'
+                    : 'border-gray-300 dark:border-gray-500 hover:border-green-400'
+                }`}
+                aria-label={item.done ? 'Marquer comme non fait' : 'Marquer comme fait'}
+              >
+                {item.done ? '✓' : ''}
+              </button>
+              <button
+                onClick={() => setSelectedItem(item)}
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors leading-none"
+                aria-label={`Ouvrir le détail : ${item.title}`}
+                title="Voir et éditer le détail"
+              >
+                ⚙
+              </button>
+            </div>
 
-            {/* Contenu de l'item  -  édition inline au clic sur le titre */}
+            {/* Contenu de l'item */}
             <div className="flex-1 min-w-0">
-              {editingId === item.id ? (
-                <div className="space-y-1">
-                  <input
-                    type="text"
-                    autoFocus
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit(item);
-                      if (e.key === 'Escape') handleCancelEdit();
-                    }}
-                    onBlur={() => handleSaveEdit(item)}
-                    className="w-full text-sm rounded border border-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit(item);
-                      if (e.key === 'Escape') handleCancelEdit();
-                    }}
-                    placeholder="Description (optionnelle)..."
-                    className="w-full text-xs rounded border border-blue-300 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  />
-                  {item.images && item.images.length > 0 && (
-                    <ImageThumbnails images={item.images} itemId={item.id} />
-                  )}
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
-                    Entrée pour sauvegarder · Échap pour annuler
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p
-                    onClick={() => handleStartEdit(item)}
-                    className={`text-sm font-medium ${
-                      item.done
-                        ? 'line-through text-gray-400 dark:text-gray-500'
-                        : 'text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
-                    }`}
-                    title={item.done ? undefined : 'Cliquer pour modifier'}
-                  >
-                    {item.title}
-                  </p>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      <LinkedText text={item.description} />
-                    </p>
-                  )}
-                  {item.images && item.images.length > 0 && (
-                    <ImageThumbnails images={item.images} itemId={item.id} />
-                  )}
-                </div>
+              <p
+                className={`text-sm font-medium ${
+                  item.done
+                    ? 'line-through text-gray-400 dark:text-gray-500'
+                    : 'text-gray-900 dark:text-white'
+                }`}
+              >
+                {item.title}
+              </p>
+              {item.description && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  <LinkedText text={item.description} />
+                </p>
+              )}
+              {item.images && item.images.length > 0 && (
+                <ImageThumbnails images={item.images} itemId={item.id} />
               )}
             </div>
 
@@ -1159,6 +1005,13 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
       )}
       </>
       )}
+
+      <ListItemDetail
+        item={selectedItem}
+        category={categories.find((c) => c.category === selectedItem?.category)}
+        onClose={() => setSelectedItem(null)}
+        onUpdate={(updated) => { onUpdate(updated); setSelectedItem(updated); }}
+      />
     </section>
   );
 }

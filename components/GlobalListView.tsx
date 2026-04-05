@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import type { ListItem, ListCategory } from '@/lib/types';
 import LinkedText from '@/components/LinkedText';
 import ImageThumbnails from '@/components/ImageThumbnails';
+import ListItemDetail from '@/components/ListItemDetail';
 
 interface GlobalListViewProps {
   items: ListItem[];
@@ -37,7 +38,6 @@ function highlight(text: string, query: string): React.ReactNode {
  */
 export default function GlobalListView({ items, categories, onUpdate, onDelete }: GlobalListViewProps) {
   const searchRef = useRef<HTMLInputElement>(null);
-
   const [searchQuery, setSearchQuery] = useState('');
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
     () => new Set(categories.map((c) => c.category))
@@ -47,6 +47,9 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+
+  // Panneau de détail d'item
+  const [selectedItem, setSelectedItem] = useState<ListItem | null>(null);
 
   // Autofocus sur la barre de recherche à l'ouverture
   useEffect(() => {
@@ -246,6 +249,7 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
             return (
               <li
                 key={item.id}
+                onDoubleClick={() => { if (editingId === item.id) handleCancelEdit(); setSelectedItem(item); }}
                 className={[
                   'flex items-start gap-3 p-3 rounded-lg transition-colors',
                   item.done
@@ -378,6 +382,13 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
           })}
         </ul>
       )}
+
+      <ListItemDetail
+        item={selectedItem}
+        category={catMap.get(selectedItem?.category ?? '')}
+        onClose={() => setSelectedItem(null)}
+        onUpdate={(updated) => { onUpdate(updated); setSelectedItem(updated); }}
+      />
     </div>
   );
 }
