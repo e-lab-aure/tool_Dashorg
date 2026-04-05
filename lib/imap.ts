@@ -228,9 +228,11 @@ function extraireImagesDeSegment(segment: string): ExtractedImage[] {
  * @param source - Source brute du message MIME
  * @returns Tableau des images extraites
  */
-function extractImagesFromMime(source: string): ExtractedImage[] {
+export function extractImagesFromMime(source: string): ExtractedImage[] {
   return extraireImagesDeSegment(source);
 }
+
+export { saveImagesToItem };
 
 /**
  * Sauvegarde les images extraites d'un email sur le disque et en base de données.
@@ -522,13 +524,14 @@ export async function pollImap(): Promise<ImapSyncResult> {
               const body = extractTextBody(rawSource);
               try {
                 db.prepare(`
-                  INSERT OR IGNORE INTO pending_emails (tag, subject, from_addr, body, message_id)
-                  VALUES (@tag, @subject, @from_addr, @body, @message_id)
+                  INSERT OR IGNORE INTO pending_emails (tag, subject, from_addr, body, raw_source, message_id)
+                  VALUES (@tag, @subject, @from_addr, @body, @raw_source, @message_id)
                 `).run({
                   tag: rawTag,
                   subject,
                   from_addr: from || null,
                   body: body || null,
+                  raw_source: rawSource,
                   message_id: messageId,
                 });
                 logger.info('imap', `Email mis en attente (tag inconnu "${rawTag}") : sujet="${subject}"`);

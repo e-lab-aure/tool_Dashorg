@@ -125,6 +125,8 @@ export interface PendingEmail {
   from_addr: string | null;
   /** Corps du mail en texte brut */
   body: string | null;
+  /** Source MIME brute complète — utilisée pour extraire les PJ lors de la résolution */
+  raw_source: string | null;
   /** Message-ID pour déduplication */
   message_id: string | null;
   created_at: string;

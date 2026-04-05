@@ -149,6 +149,13 @@ function applyMigrations(db: Database.Database): void {
   } catch {
     // Table déjà présente  -  migration ignorée
   }
+
+  // Migration : ajout de raw_source pour conserver la source MIME brute des emails en attente
+  try {
+    db.exec(`ALTER TABLE pending_emails ADD COLUMN raw_source TEXT`);
+  } catch {
+    // Colonne déjà présente  -  migration ignorée
+  }
 }
 
 /**

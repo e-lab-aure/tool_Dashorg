@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { extractImagesFromMime, saveImagesToItem } from '@/lib/imap';
+import { logger } from '@/lib/logger';
 import type { PendingEmail, ListCategory, ListItem } from '@/lib/types';
 
 /**
@@ -143,6 +145,15 @@ export async function POST(
 
     // Supprime l'email de la file d'attente
     db.prepare('DELETE FROM pending_emails WHERE id = ?').run(numId);
+
+    // Extrait et sauvegarde les PJ depuis la source MIME brute si disponible
+    if (pending.raw_source && item) {
+      const images = extractImagesFromMime(pending.raw_source);
+      if (images.length > 0) {
+        const saved = saveImagesToItem(images, item.id);
+        logger.info('admin/pending-emails', `${saved}/${images.length} PJ sauvegardée(s) pour item id=${item.id}`);
+      }
+    }
 
     return NextResponse.json({ category, item });
   } catch (err) {
