@@ -41,7 +41,6 @@ export default function AdminPanel() {
   // Logs
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
-  const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -94,19 +93,18 @@ export default function AdminPanel() {
     };
   }, [isOpen, loadData]);
 
-  // Auto-scroll en bas quand de nouveaux logs arrivent
+  // Auto-scroll en haut quand de nouveaux logs arrivent (les plus récents sont en tête)
   useEffect(() => {
-    if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (autoScroll && logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = 0;
     }
   }, [logs, autoScroll]);
 
-  // Détecte si l'utilisateur a scrollé manuellement vers le haut
+  // Détecte si l'utilisateur a scrollé manuellement loin du haut
   function handleLogsScroll() {
     const container = logsContainerRef.current;
     if (!container) return;
-    const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 30;
-    setAutoScroll(atBottom);
+    setAutoScroll(container.scrollTop < 30);
   }
 
   // Dismisses un email en attente
@@ -357,7 +355,7 @@ export default function AdminPanel() {
                   {logs.length === 0 ? (
                     <p className="text-gray-600 italic py-2">Aucun log en mémoire.</p>
                   ) : (
-                    logs.map((entry) => (
+                    [...logs].reverse().map((entry) => (
                       <div
                         key={entry.id}
                         className="py-0.5 leading-relaxed whitespace-pre-wrap break-all"
@@ -371,7 +369,6 @@ export default function AdminPanel() {
                       </div>
                     ))
                   )}
-                  <div ref={logsEndRef} />
                 </div>
               </div>
             </div>

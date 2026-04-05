@@ -14,7 +14,6 @@ interface GlobalListViewProps {
 
 /**
  * Surligne la première occurrence de `query` dans `text`.
- * Retourne le texte brut si aucune correspondance.
  */
 function highlight(text: string, query: string): React.ReactNode {
   if (!query) return text;
@@ -32,8 +31,9 @@ function highlight(text: string, query: string): React.ReactNode {
 }
 
 /**
- * Vue globale des listes : affiche tous les items actifs de toutes les catégories
- * avec une barre de recherche transversale et des filtres par catégorie.
+ * Vue globale des listes : affiche tous les items actifs en liste plate
+ * avec recherche transversale (titre, description, extra_data, nom de catégorie)
+ * et filtres par catégorie.
  */
 export default function GlobalListView({ items, categories, onUpdate, onDelete }: GlobalListViewProps) {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -61,6 +61,12 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
       return next;
     });
   }, [categories]);
+
+  // Map catégorie → objet pour les badges et la recherche par nom
+  const catMap = useMemo(
+    () => new Map(categories.map((c) => [c.category, c])),
+    [categories]
+  );
 
   function handleStartEdit(item: ListItem): void {
     if (item.done || item.archived) return;
@@ -133,30 +139,32 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
 
   const q = searchQuery.trim().toLowerCase();
 
-  // Items actifs filtrés par catégories actives et par la recherche
+  /**
+   * Items actifs filtrés par catégories actives et par la requête.
+   * Si la requête correspond au nom d'une catégorie, tous les items
+   * de cette catégorie sont inclus (même sans correspondance sur le titre).
+   */
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       if (item.archived !== 0) return false;
       if (!enabledCategories.has(item.category)) return false;
       if (!q) return true;
-      return (
+
+      // Correspondance directe sur le contenu de l'item
+      if (
         item.title.toLowerCase().includes(q) ||
         (item.description?.toLowerCase().includes(q) ?? false) ||
         (item.extra_data?.toLowerCase().includes(q) ?? false)
+      ) return true;
+
+      // Correspondance sur le nom ou la clé de catégorie → inclut tous ses items
+      const cat = catMap.get(item.category);
+      return (
+        (cat?.name.toLowerCase().includes(q) ?? false) ||
+        (cat?.category.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [items, enabledCategories, q]);
-
-  // Items groupés par catégorie, dans l'ordre des catégories
-  const groupedItems = useMemo(() => {
-    return categories
-      .filter((cat) => enabledCategories.has(cat.category))
-      .map((cat) => ({
-        cat,
-        catItems: filteredItems.filter((i) => i.category === cat.category),
-      }))
-      .filter(({ catItems }) => catItems.length > 0 || !q);
-  }, [filteredItems, categories, enabledCategories, q]);
+  }, [items, enabledCategories, q, catMap]);
 
   const allSelected = enabledCategories.size === categories.length;
 
@@ -169,7 +177,7 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Rechercher dans toutes les listes..."
+          placeholder="Rechercher par titre, description ou nom de liste..."
           className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-600
                      bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white
                      px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500
@@ -224,158 +232,152 @@ export default function GlobalListView({ items, categories, onUpdate, onDelete }
         </button>
       </div>
 
-      {/* Liste groupée par catégorie */}
-      <div className="space-y-5">
-        {groupedItems.length === 0 && q && (
-          <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">
-            Aucun résultat pour &laquo;&nbsp;{searchQuery}&nbsp;&raquo;
-          </p>
-        )}
+      {/* Liste plate de tous les items */}
+      {filteredItems.length === 0 ? (
+        <p className="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center">
+          {q
+            ? `Aucun résultat pour « ${searchQuery} »`
+            : 'Aucun item dans les listes sélectionnées'}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {filteredItems.map((item) => {
+            const cat = catMap.get(item.category);
+            return (
+              <li
+                key={item.id}
+                className={[
+                  'flex items-start gap-3 p-3 rounded-lg transition-colors',
+                  item.done
+                    ? 'bg-gray-50 dark:bg-gray-700/40 opacity-70'
+                    : 'bg-gray-50 dark:bg-gray-700',
+                ].join(' ')}
+              >
+                {/* Bouton fait/non-fait */}
+                <button
+                  onClick={() => handleToggleDone(item)}
+                  className={`shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    item.done
+                      ? 'border-green-500 bg-green-500 text-white'
+                      : 'border-gray-300 dark:border-gray-500 hover:border-green-400'
+                  }`}
+                  aria-label={item.done ? 'Marquer comme non fait' : 'Marquer comme fait'}
+                >
+                  {item.done ? '✓' : ''}
+                </button>
 
-        {groupedItems.map(({ cat, catItems }) => (
-          <div key={cat.category}>
-            {/* En-tête catégorie */}
-            <div className="flex items-center gap-2 mb-2 pb-1 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-base">{cat.icon}</span>
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{cat.name}</h3>
-              {catItems.length > 0 && (
-                <span className="text-xs text-gray-400 dark:text-gray-500">({catItems.length})</span>
-              )}
-            </div>
-
-            {catItems.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-gray-500 italic py-1 px-1">
-                Aucun item dans cette liste
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {catItems.map((item) => (
-                  <li
-                    key={item.id}
-                    className={[
-                      'flex items-start gap-3 p-3 rounded-lg transition-colors',
-                      item.done
-                        ? 'bg-gray-50 dark:bg-gray-700/40 opacity-70'
-                        : 'bg-gray-50 dark:bg-gray-700',
-                    ].join(' ')}
-                  >
-                    {/* Bouton fait/non-fait */}
-                    <button
-                      onClick={() => handleToggleDone(item)}
-                      className={`shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        item.done
-                          ? 'border-green-500 bg-green-500 text-white'
-                          : 'border-gray-300 dark:border-gray-500 hover:border-green-400'
-                      }`}
-                      aria-label={item.done ? 'Marquer comme non fait' : 'Marquer comme fait'}
-                    >
-                      {item.done ? '✓' : ''}
-                    </button>
-
-                    {/* Contenu */}
-                    <div className="flex-1 min-w-0">
-                      {editingId === item.id ? (
-                        <div className="space-y-1">
-                          <input
-                            type="text"
-                            autoFocus
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveEdit(item);
-                              if (e.key === 'Escape') handleCancelEdit();
-                            }}
-                            onBlur={() => handleSaveEdit(item)}
-                            className="w-full text-sm rounded border border-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                          <input
-                            type="text"
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveEdit(item);
-                              if (e.key === 'Escape') handleCancelEdit();
-                            }}
-                            placeholder="Description (optionnelle)..."
-                            className="w-full text-xs rounded border border-blue-300 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          />
-                          {item.images && item.images.length > 0 && (
-                            <ImageThumbnails images={item.images} itemId={item.id} />
-                          )}
-                          <p className="text-xs text-gray-400 dark:text-gray-500">
-                            Entrée pour sauvegarder · Échap pour annuler
-                          </p>
-                        </div>
-                      ) : (
-                        <div>
-                          <p
-                            onClick={() => handleStartEdit(item)}
-                            className={`text-sm font-medium ${
-                              item.done
-                                ? 'line-through text-gray-400 dark:text-gray-500'
-                                : 'text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
-                            }`}
-                            title={item.done ? undefined : 'Cliquer pour modifier'}
-                          >
-                            {highlight(item.title, searchQuery.trim())}
-                          </p>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                              {q && item.description.toLowerCase().includes(q)
-                                ? highlight(item.description, searchQuery.trim())
-                                : <LinkedText text={item.description} />}
-                            </p>
-                          )}
-                          {item.images && item.images.length > 0 && (
-                            <ImageThumbnails images={item.images} itemId={item.id} />
-                          )}
-                        </div>
+                {/* Contenu */}
+                <div className="flex-1 min-w-0">
+                  {editingId === item.id ? (
+                    <div className="space-y-1">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(item);
+                          if (e.key === 'Escape') handleCancelEdit();
+                        }}
+                        onBlur={() => handleSaveEdit(item)}
+                        className="w-full text-sm rounded border border-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <input
+                        type="text"
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(item);
+                          if (e.key === 'Escape') handleCancelEdit();
+                        }}
+                        placeholder="Description (optionnelle)..."
+                        className="w-full text-xs rounded border border-blue-300 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                      {item.images && item.images.length > 0 && (
+                        <ImageThumbnails images={item.images} itemId={item.id} />
+                      )}
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        Entrée pour sauvegarder · Échap pour annuler
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p
+                        onClick={() => handleStartEdit(item)}
+                        className={`text-sm font-medium ${
+                          item.done
+                            ? 'line-through text-gray-400 dark:text-gray-500'
+                            : 'text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
+                        }`}
+                        title={item.done ? undefined : 'Cliquer pour modifier'}
+                      >
+                        {highlight(item.title, searchQuery.trim())}
+                      </p>
+                      {item.description && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {q && item.description.toLowerCase().includes(q)
+                            ? highlight(item.description, searchQuery.trim())
+                            : <LinkedText text={item.description} />}
+                        </p>
+                      )}
+                      {item.images && item.images.length > 0 && (
+                        <ImageThumbnails images={item.images} itemId={item.id} />
                       )}
                     </div>
+                  )}
+                </div>
 
-                    {/* Badge source IMAP */}
-                    {item.source === 'imap' && (
-                      <span className="shrink-0 text-xs bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded">
-                        email
-                      </span>
-                    )}
+                {/* Badge catégorie */}
+                {cat && (
+                  <span
+                    className="shrink-0 text-xs text-gray-400 dark:text-gray-500 mt-0.5"
+                    title={cat.name}
+                  >
+                    {cat.icon}
+                  </span>
+                )}
 
-                    {/* Actions */}
-                    {item.done ? (
-                      <div className="shrink-0 flex items-center gap-1">
-                        <button
-                          onClick={() => handleArchive(item.id)}
-                          className="p-1 text-gray-400 hover:text-amber-500 dark:text-gray-500 dark:hover:text-amber-400 transition-colors"
-                          aria-label={`Archiver : ${item.title}`}
-                          title="Archiver"
-                        >
-                          📦
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
-                          aria-label={`Supprimer : ${item.title}`}
-                          title="Supprimer définitivement"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="shrink-0 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 text-sm"
-                        aria-label={`Supprimer : ${item.title}`}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ))}
-      </div>
+                {/* Badge source IMAP */}
+                {item.source === 'imap' && (
+                  <span className="shrink-0 text-xs bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded">
+                    email
+                  </span>
+                )}
+
+                {/* Actions */}
+                {item.done ? (
+                  <div className="shrink-0 flex items-center gap-1">
+                    <button
+                      onClick={() => handleArchive(item.id)}
+                      className="p-1 text-gray-400 hover:text-amber-500 dark:text-gray-500 dark:hover:text-amber-400 transition-colors"
+                      aria-label={`Archiver : ${item.title}`}
+                      title="Archiver"
+                    >
+                      📦
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+                      aria-label={`Supprimer : ${item.title}`}
+                      title="Supprimer définitivement"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="shrink-0 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 text-sm"
+                    aria-label={`Supprimer : ${item.title}`}
+                  >
+                    ✕
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

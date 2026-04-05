@@ -48,8 +48,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
   const [editCatName, setEditCatName] = useState('');
   const [editCatIcon, setEditCatIcon] = useState('');
 
-  // État du formulaire de création de nouvelle liste
-  const [showNewListForm, setShowNewListForm] = useState(false);
+  // État du formulaire de création de nouvelle liste (dans la modale)
   const [newListName, setNewListName] = useState('');
   const [newListTagKey, setNewListTagKey] = useState('');
   const [newListIcon, setNewListIcon] = useState('📋');
@@ -71,6 +70,18 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
 
   // Mode vue globale (recherche + filtres cross-catégories)
   const [isGlobalView, setIsGlobalView] = useState(false);
+
+  // Catégories masquées dans la barre d'onglets (persistées en localStorage)
+  const [hiddenCats, setHiddenCats] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const raw = localStorage.getItem('dashorg_hidden_categories');
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+
+  // Modale de gestion des listes (visibilité + création)
+  const [showListManager, setShowListManager] = useState(false);
 
   /**
    * Charge les catégories depuis l'API au montage du composant.
@@ -99,6 +110,29 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
       setInfoSearch('');
     }
   }, [showInfoPopup]);
+
+  // Si l'onglet actif vient d'être masqué, bascule vers le premier onglet visible
+  useEffect(() => {
+    if (!activeTab || !hiddenCats.has(activeTab)) return;
+    const firstVisible = categories.find((c) => !hiddenCats.has(c.category));
+    if (firstVisible) setActiveTab(firstVisible.category);
+  }, [hiddenCats, activeTab, categories]);
+
+  // Catégories affichées dans la barre d'onglets
+  const visibleCategories = categories.filter((c) => !hiddenCats.has(c.category));
+
+  /** Bascule la visibilité d'une catégorie dans la barre d'onglets et persiste en localStorage. */
+  function toggleCatVisibility(catKey: string): void {
+    setHiddenCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(catKey)) next.delete(catKey);
+      else next.add(catKey);
+      try {
+        localStorage.setItem('dashorg_hidden_categories', JSON.stringify([...next]));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   // Catégorie active courante
   const activeCat = categories.find((c) => c.category === activeTab);
@@ -329,7 +363,8 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
       setNewListName('');
       setNewListTagKey('');
       setNewListIcon('📋');
-      setShowNewListForm(false);
+      setShowListManager(false);
+      setIsGlobalView(false);
     } catch (err) {
       setNewListError('Erreur lors de la création');
     }
@@ -569,9 +604,9 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
         </div>
       )}
 
-      {/* Onglets de catégories + bouton nouvelle liste */}
+      {/* Onglets de catégories + bouton gestion des listes */}
       <div className="flex gap-1 mb-1 border-b border-gray-200 dark:border-gray-700 flex-wrap">
-        {categories.map((cat) => {
+        {visibleCategories.map((cat) => {
           // Mode édition inline de l'onglet
           if (editingCatId === cat.id) {
             return (
@@ -647,16 +682,16 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
           );
         })}
 
-        {/* Bouton pour créer une nouvelle liste */}
+        {/* Bouton gestion des listes (visibilité + création) */}
         <button
           onClick={() => {
-            setShowNewListForm((prev) => !prev);
+            setShowListManager(true);
             setNewListError(null);
           }}
           className="px-3 py-2 text-sm font-medium rounded-t-md text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title="Créer une nouvelle liste"
+          title="Gérer les listes"
         >
-          + Liste
+          📋 Listes
         </button>
 
         {/* Bouton bascule vue globale */}
@@ -666,7 +701,7 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
               if (!v) {
                 setShowForm(false);
                 setEditingId(null);
-                setShowNewListForm(false);
+                setShowListManager(false);
               }
               return !v;
             });
@@ -681,6 +716,155 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
           🔍 Vue globale
         </button>
       </div>
+
+      {/* Modale de gestion des listes (visibilité + création) */}
+      {showListManager && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowListManager(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Gérer les listes"
+        >
+          <div
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* En-tête */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
+                Gérer les listes
+              </h3>
+              <button
+                onClick={() => setShowListManager(false)}
+                className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-800 dark:hover:text-white flex items-center justify-center text-sm transition-colors"
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Section : visibilité des listes */}
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                Listes affichées dans les onglets
+              </p>
+              <ul className="space-y-1">
+                {categories.map((cat) => {
+                  const isVisible = !hiddenCats.has(cat.category);
+                  const count = items.filter(
+                    (i) => i.category === cat.category && i.archived === 0
+                  ).length;
+                  return (
+                    <li
+                      key={cat.category}
+                      className="flex items-center gap-3 py-1.5 px-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    >
+                      <button
+                        onClick={() => toggleCatVisibility(cat.category)}
+                        className={`shrink-0 w-8 h-5 rounded-full transition-colors ${
+                          isVisible
+                            ? 'bg-blue-500'
+                            : 'bg-gray-200 dark:bg-gray-700'
+                        }`}
+                        aria-label={isVisible ? 'Masquer cet onglet' : 'Afficher cet onglet'}
+                        title={isVisible ? 'Masquer' : 'Afficher'}
+                      >
+                        <span
+                          className={`block w-4 h-4 rounded-full bg-white shadow transition-transform mx-0.5 ${
+                            isVisible ? 'translate-x-3' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-base">{cat.icon}</span>
+                      <span className={`flex-1 text-sm ${isVisible ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>
+                        {cat.name}
+                      </span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {count} item{count !== 1 ? 's' : ''}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            {/* Section : créer une nouvelle liste */}
+            <div className="px-4 py-3">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                Nouvelle liste
+              </p>
+              <div className="space-y-2">
+                {/* Nom d'affichage */}
+                <input
+                  type="text"
+                  autoFocus
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateList();
+                    if (e.key === 'Escape') setShowListManager(false);
+                  }}
+                  placeholder="Nom affiché (ex : Séries TV)"
+                  className="w-full text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+
+                {/* Tag IMAP */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newListTagKey}
+                    onChange={(e) => setNewListTagKey(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateList();
+                      if (e.key === 'Escape') setShowListManager(false);
+                    }}
+                    placeholder="Tag email (ex : serie)"
+                    className="flex-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  {tagPreview && (
+                    <span className="shrink-0 font-mono text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-700">
+                      {tagPreview}
+                    </span>
+                  )}
+                </div>
+
+                {/* Icône */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Icône :</span>
+                  <EmojiPickerButton value={newListIcon} onChange={setNewListIcon} />
+                </div>
+
+                {/* Erreur */}
+                {newListError && (
+                  <p className="text-xs text-red-500 dark:text-red-400">{newListError}</p>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={handleCreateList}
+                    className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Créer
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowListManager(false);
+                      setNewListName('');
+                      setNewListTagKey('');
+                      setNewListIcon('📋');
+                      setNewListError(null);
+                    }}
+                    className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isGlobalView ? (
         <GlobalListView
@@ -700,82 +884,6 @@ export default function ListPanel({ items, onAdd, onUpdate, onDelete, onReorder 
             {activeCat.tag}
           </span>
         </p>
-      )}
-
-      {/* Formulaire de création d'une nouvelle liste */}
-      {showNewListForm && (
-        <div className="mb-4 p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 space-y-2">
-          <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">
-            Nouvelle liste
-          </p>
-
-          {/* Nom d'affichage */}
-          <input
-            type="text"
-            autoFocus
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateList();
-              if (e.key === 'Escape') setShowNewListForm(false);
-            }}
-            placeholder="Nom affiché (ex : Séries TV)"
-            className="w-full text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-
-          {/* Tag IMAP */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={newListTagKey}
-              onChange={(e) => setNewListTagKey(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateList();
-                if (e.key === 'Escape') setShowNewListForm(false);
-              }}
-              placeholder="Tag (ex : serie)"
-              className="flex-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            {/* Aperçu du tag généré */}
-            {tagPreview && (
-              <span className="shrink-0 font-mono text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-700">
-                {tagPreview}
-              </span>
-            )}
-          </div>
-
-          {/* Icône  -  sélecteur d'emoji */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Icône :</span>
-            <EmojiPickerButton value={newListIcon} onChange={setNewListIcon} />
-          </div>
-
-          {/* Message d'erreur */}
-          {newListError && (
-            <p className="text-xs text-red-500 dark:text-red-400">{newListError}</p>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleCreateList}
-              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Créer
-            </button>
-            <button
-              onClick={() => {
-                setShowNewListForm(false);
-                setNewListName('');
-                setNewListTagKey('');
-                setNewListIcon('📋');
-                setNewListError(null);
-              }}
-              className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
       )}
 
       {/* Liste des items actifs de la catégorie */}
