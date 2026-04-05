@@ -16,6 +16,7 @@ import ArchivePanel from '@/components/ArchivePanel';
 import ListPanel from '@/components/ListPanel';
 import TaskDetail from '@/components/TaskDetail';
 import BackupPanel from '@/components/BackupPanel';
+import AdminPanel from '@/components/AdminPanel';
 import RssBanner from '@/app/RssBanner';
 import RssModal from '@/app/RssModal';
 import type { Task, ListItem } from '@/lib/types';
@@ -430,6 +431,9 @@ export default function HomePage() {
 
           {/* Engrenage parametres */}
           <BackupPanel onImportSuccess={loadData} />
+
+          {/* Panneau d'administration (logs + emails en attente) */}
+          <AdminPanel />
         </div>
       </header>
 

@@ -426,6 +426,7 @@ export async function pollImap(): Promise<ImapSyncResult> {
       interface CollectedMessage {
         uid: number;
         subject: string;
+        from: string;
         source: string;
       }
 
@@ -437,16 +438,21 @@ export async function pollImap(): Promise<ImapSyncResult> {
         envelope: true,
         source: true,
       }, { uid: true })) {
+        const fromAddresses = (message.envelope?.from as Array<{ name?: string; address?: string }> | undefined) ?? [];
+        const from = fromAddresses
+          .map((a) => (a.name ? `${a.name} <${a.address ?? ''}>` : (a.address ?? '')))
+          .join(', ');
         collected.push({
           uid: message.uid,
           subject: message.envelope?.subject ?? '',
+          from,
           source: String(message.source ?? ''),
         });
       }
 
       // Phase 2 : traitement des messages collectés (insertion en base + images)
       for (const msg of collected) {
-        const { uid, subject, source: rawSource } = msg;
+        const { uid, subject, from, source: rawSource } = msg;
         const upperSubject = subject.toUpperCase();
         const messageId = extractMessageId(rawSource);
 
@@ -508,7 +514,30 @@ export async function pollImap(): Promise<ImapSyncResult> {
           const parsed = parseSubject(subject, tagToCategory);
 
           if (!parsed) {
-            logger.info('imap', `Email ignoré (pas de tag) : sujet="${subject}"`);
+            // Détecte si le sujet contient un tag de type [QUELQUECHOSE] non reconnu
+            // → conservé en base pour action manuelle plutôt que silencieusement ignoré
+            const tagMatch = subject.match(/^\[([A-Z0-9_]+)\]/i);
+            if (tagMatch) {
+              const rawTag = `[${tagMatch[1].toUpperCase()}]`;
+              const body = extractTextBody(rawSource);
+              try {
+                db.prepare(`
+                  INSERT OR IGNORE INTO pending_emails (tag, subject, from_addr, body, message_id)
+                  VALUES (@tag, @subject, @from_addr, @body, @message_id)
+                `).run({
+                  tag: rawTag,
+                  subject,
+                  from_addr: from || null,
+                  body: body || null,
+                  message_id: messageId,
+                });
+                logger.info('imap', `Email mis en attente (tag inconnu "${rawTag}") : sujet="${subject}"`);
+              } catch {
+                logger.info('imap', `Email ignoré (tag inconnu) : sujet="${subject}"`);
+              }
+            } else {
+              logger.info('imap', `Email ignoré (pas de tag) : sujet="${subject}"`);
+            }
             ignored++;
           } else {
             const { category, cleanTitle } = parsed;

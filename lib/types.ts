@@ -114,6 +114,22 @@ export interface TomorrowSlots {
   total: number;
 }
 
+/** Email reçu avec un tag non reconnu, en attente d'action manuelle */
+export interface PendingEmail {
+  id: number;
+  /** Tag extrait du sujet, ex : "[GAMING]" */
+  tag: string;
+  /** Sujet complet de l'email */
+  subject: string;
+  /** Adresse de l'expéditeur */
+  from_addr: string | null;
+  /** Corps du mail en texte brut */
+  body: string | null;
+  /** Message-ID pour déduplication */
+  message_id: string | null;
+  created_at: string;
+}
+
 /** Structure d'un fichier de sauvegarde Dashorg */
 export interface BackupData {
   /** Version du format de backup, pour la compatibilité future */

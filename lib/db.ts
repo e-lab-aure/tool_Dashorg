@@ -132,6 +132,23 @@ function applyMigrations(db: Database.Database): void {
   try {
     db.exec('ALTER TABLE rss_articles ADD COLUMN image_url TEXT');
   } catch { /* Colonne déjà présente */ }
+
+  // Migration : emails en attente (tag reçu mais non reconnu par aucune liste)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pending_emails (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        tag        TEXT    NOT NULL,
+        subject    TEXT    NOT NULL,
+        from_addr  TEXT,
+        body       TEXT,
+        message_id TEXT    UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch {
+    // Table déjà présente  -  migration ignorée
+  }
 }
 
 /**
